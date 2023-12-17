@@ -67,5 +67,14 @@ func (s *Server) handleConnection(conn net.Conn) {
 			break
 		}
 
+		response, err := parsePacket(buffer[:n], conn.RemoteAddr())
+		if err != nil {
+			log.Println("failed to parse pakcet ERROR:", err)
+			continue
+		}
+
+		if _, err := conn.Write(response); err != nil {
+			break
+		}
 	}
 }
