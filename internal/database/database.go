@@ -5,32 +5,23 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
 	_ "github.com/joho/godotenv/autoload"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Service interface {
 	Health() map[string]string
+	GetUserWithDevices(userID string) UserWithDevices
 }
 
 type service struct {
 	db *sql.DB
 }
 
-var (
-	database = os.Getenv("DB_DATABASE")
-	password = os.Getenv("DB_PASSWORD")
-	username = os.Getenv("DB_USERNAME")
-	port     = os.Getenv("DB_PORT")
-	host     = os.Getenv("DB_HOST")
-)
-
 func New() Service {
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, database)
-	db, err := sql.Open("pgx", connStr)
+	db, err := sql.Open("sqlite3", "./internal/database/gpsitty.db?cache=shared&mode=rwc&_journal_mode=WAL&busy_timeout=10000&_fk=1")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,4 +41,20 @@ func (s *service) Health() map[string]string {
 	return map[string]string{
 		"message": "It's healthy",
 	}
+}
+
+type UserWithDevices struct {
+	UserID    string
+	Email     string
+	AvatarURL string
+	Devices   []struct {
+		IMEI             string
+		BatteryPower     int
+		LastStatusPacket time.Time
+		StatusCooldown   int
+		Charging         bool
+	}
+}
+
+func (s *service) GetUserWithDevices(userID string) UserWithDevices {
 }

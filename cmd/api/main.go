@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"gpsitty/internal/auth"
 	"gpsitty/internal/server"
 	"gpsitty/internal/tcp"
@@ -16,6 +18,6 @@ func main() {
 
 	err := server.ListenAndServe()
 	if err != nil {
-		panic("cannot start server")
+		log.Fatal("failed to start server:", err)
 	}
 }

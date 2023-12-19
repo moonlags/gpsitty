@@ -28,7 +28,7 @@ type Server struct {
 }
 
 func NewServer() *Server {
-	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	port, _ := strconv.Atoi(os.Getenv("TCP_PORT"))
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -67,7 +67,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			break
 		}
 
-		response, err := parsePacket(buffer[:n], conn.RemoteAddr())
+		response, err := s.parsePacket(buffer[:n], conn.RemoteAddr())
 		if err != nil {
 			log.Println("failed to parse pakcet ERROR:", err)
 			continue

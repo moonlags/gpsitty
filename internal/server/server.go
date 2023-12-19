@@ -11,23 +11,20 @@ import (
 	"gpsitty/internal/database"
 
 	_ "github.com/joho/godotenv/autoload"
-	"github.com/markbates/goth"
 )
 
 type Server struct {
-	port    int
-	db      database.Service
-	users   map[string]goth.User
-	devices map[string]net.Conn
+	port               int
+	db                 database.Service
+	device_connections map[string]net.Conn
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	NewServer := &Server{
-		port:    port,
-		db:      database.New(),
-		users:   make(map[string]goth.User),
-		devices: make(map[string]net.Conn),
+		port:               port,
+		db:                 database.New(),
+		device_connections: make(map[string]net.Conn),
 	}
 
 	// Declare Server config

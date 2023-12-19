@@ -110,7 +110,7 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := s.users[userid]
+	user := "" // todo
 
 	jsonResp, err := json.Marshal(user)
 	if err != nil {
