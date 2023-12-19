@@ -66,7 +66,9 @@ func (s *Server) authCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.users[user.UserID] = user
+	if err := s.db.CreateUser(user.UserID, user.Email, user.AvatarURL); err != nil {
+		log.Println("failed to create user, but thats maybe ok:", err)
+	}
 
 	http.Redirect(w, r, "http://localhost:5173/", http.StatusFound)
 }
@@ -98,7 +100,9 @@ func (s *Server) authHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.users[user.UserID] = user
+	if err := s.db.CreateUser(user.UserID, user.Email, user.AvatarURL); err != nil {
+		log.Println("failed to create user, but thats maybe ok:", err)
+	}
 
 	http.Redirect(w, r, "http://localhost:5173", http.StatusFound)
 }
@@ -110,7 +114,11 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := "" // todo
+	user, err := s.db.GetUserWithDevices(userid)
+	if err != nil {
+		log.Println("failed to get user with devices:", err)
+		http.Error(w, "failed to get user with devices", http.StatusUnauthorized)
+	}
 
 	jsonResp, err := json.Marshal(user)
 	if err != nil {
@@ -120,4 +128,8 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write(jsonResp); err != nil {
 		log.Fatal("failed to write to response", err)
 	}
+}
+
+func (s *Server) linkDevice(w http.ResponseWriter, r *http.Request) {
+	// todo
 }
