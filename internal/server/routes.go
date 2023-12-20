@@ -67,7 +67,7 @@ func (s *Server) authCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.CreateUser(user.UserID, user.Email, user.AvatarURL); err != nil {
-		log.Println("failed to create user, but thats maybe ok:", err)
+		log.Fatal("failed to create user:", err)
 	}
 
 	http.Redirect(w, r, "http://localhost:5173/", http.StatusFound)
@@ -101,7 +101,7 @@ func (s *Server) authHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.CreateUser(user.UserID, user.Email, user.AvatarURL); err != nil {
-		log.Println("failed to create user, but thats maybe ok:", err)
+		log.Fatal("failed to create user:", err)
 	}
 
 	http.Redirect(w, r, "http://localhost:5173", http.StatusFound)

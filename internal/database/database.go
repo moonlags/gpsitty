@@ -78,7 +78,7 @@ func (s *service) GetUserWithDevices(userID string) (*UserWithDevices, error) {
 }
 
 func (s *service) CreateUser(userID string, email string, avatar string) error {
-	query := "INSERT INTO users (id,email,avatar) VALUES (:id,:email,:avatar)"
+	query := "INSERT INTO users (id,email,avatar) VALUES (:id,:email,:avatar) ON CONFLICT (id) DO UPDATE SET last_login_time = CURRENT_TIMESTAMP"
 
 	if _, err := s.db.NamedExec(query, map[string]interface{}{
 		"id":     userID,
