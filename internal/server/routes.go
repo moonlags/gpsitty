@@ -131,5 +131,5 @@ func (s *Server) getSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) linkDevice(w http.ResponseWriter, r *http.Request) {
-	// todo
+	panic("not implemented") // todo
 }

@@ -10,24 +10,15 @@ import (
 	"gpsitty/internal/database"
 )
 
-// type DeviceData struct {
-// 	IMEI                 string
-// 	Posititions          []PosititioningPacket
-// 	BatteryPower         uint8
-// 	LastStatusPacketTime int64
-// 	StatusCooldown       int32
-// 	IsLoggedIn           bool
-// 	InChargingState      bool
-// 	Connection           *net.Conn
-// }
-
 type Server struct {
-	port     int
-	db       database.Service
-	listener net.Listener
+	port               int
+	db                 database.Service
+	listener           net.Listener
+	device_connections map[string]net.Conn
+	logged_connections map[net.Conn]string
 }
 
-func NewServer() *Server {
+func NewServer(device_connections map[string]net.Conn) *Server {
 	port, _ := strconv.Atoi(os.Getenv("TCP_PORT"))
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -35,10 +26,17 @@ func NewServer() *Server {
 		log.Fatal("failed to create tcp listener", err)
 	}
 
+	db, err := database.New()
+	if err != nil {
+		log.Fatal("failed to create database service:", err)
+	}
+
 	server := &Server{
-		port:     port,
-		db:       database.New(),
-		listener: listener,
+		port:               port,
+		db:                 db,
+		listener:           listener,
+		device_connections: device_connections,
+		logged_connections: make(map[net.Conn]string),
 	}
 
 	return server
@@ -67,7 +65,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 			break
 		}
 
-		response, err := s.parsePacket(buffer[:n], conn.RemoteAddr())
+		response, err := s.parsePacket(buffer[:n], conn)
 		if err != nil {
 			log.Println("failed to parse pakcet ERROR:", err)
 			continue

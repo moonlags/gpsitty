@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 
 	"gpsitty/internal/auth"
 	"gpsitty/internal/server"
@@ -9,10 +10,11 @@ import (
 )
 
 func main() {
+	device_connections := make(map[string]net.Conn)
 	auth.New()
 
-	server := server.NewServer()
-	serverTcp := tcp.NewServer()
+	server := server.NewServer(device_connections)
+	serverTcp := tcp.NewServer(device_connections)
 
 	go serverTcp.Listen()
 

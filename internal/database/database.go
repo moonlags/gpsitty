@@ -16,6 +16,7 @@ type Service interface {
 	Health() map[string]string
 	GetUserWithDevices(userID string) (*UserWithDevices, error)
 	CreateUser(userID string, email string, avatar string) error
+	InsertPosition(latitude float32, longitude float32, speed uint8, heading uint16, imei string) error
 }
 
 type service struct {
@@ -30,14 +31,14 @@ var (
 	host     = os.Getenv("DB_HOST")
 )
 
-func New() Service {
+func New() (Service, error) {
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, database)
 	db, err := sqlx.Connect("postgres", connStr)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	s := &service{db: db}
-	return s
+	return s, nil
 }
 
 func (s *service) Health() map[string]string {
@@ -84,6 +85,30 @@ func (s *service) CreateUser(userID string, email string, avatar string) error {
 		"id":     userID,
 		"email":  email,
 		"avatar": avatar,
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) InsertPosition(latitude float32, longitude float32, speed uint8, heading uint16, imei string) error {
+	query := `WITH inserted_row AS(
+		INSERT INTO positions (latitude,longitude,speed,heading,device_imei)
+		VALUES (:latitude,:longitude,:speed,:heading,:device_imei)
+		RETURNING *
+	)
+	DELETE FROM positions
+	WHERE id IN(
+		SELECT id FROM (SELECT id FROM positions WHERE device_imei=:device_imei ORDER BY created_at ASC OFFSET 10) as subquery
+	);`
+
+	if _, err := s.db.NamedExec(query, map[string]interface{}{
+		"latitude":    latitude,
+		"longitude":   longitude,
+		"speed":       speed,
+		"heading":     heading,
+		"device_imei": imei,
 	}); err != nil {
 		return err
 	}

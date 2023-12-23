@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -19,12 +20,18 @@ type Server struct {
 	device_connections map[string]net.Conn
 }
 
-func NewServer() *http.Server {
+func NewServer(device_connections map[string]net.Conn) *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
+
+	db, err := database.New()
+	if err != nil {
+		log.Fatal("failed to create database service:", err)
+	}
+
 	NewServer := &Server{
 		port:               port,
-		db:                 database.New(),
-		device_connections: make(map[string]net.Conn),
+		db:                 db,
+		device_connections: device_connections,
 	}
 
 	// Declare Server config
