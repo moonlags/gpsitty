@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
-	_ "github.com/lib/pq"
 )
 
 type Service interface {
@@ -32,8 +32,8 @@ var (
 )
 
 func New() (Service, error) {
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, database)
-	db, err := sqlx.Connect("postgres", connStr)
+	connStr := fmt.Sprintf("%s:%s@(%s:%s)/%s", username, password, host, port, database)
+	db, err := sqlx.Connect("mysql", connStr)
 	if err != nil {
 		return nil, err
 	}
