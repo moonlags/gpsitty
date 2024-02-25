@@ -63,18 +63,27 @@ func (p *LoginPacket) Process(device *Device, device_connections map[string]net.
 	if _, ok := device_connections[p.IMEI]; ok || device.IMEI != "" {
 		return nil, errors.New("device already logged in.")
 	}
-	device.Logger.Infof("device %s logged in\n", p.IMEI)
+	log.Printf("INFO: device %s logged in\n", p.IMEI)
+
 	device.IMEI = p.IMEI
 	device_connections[p.IMEI] = device.Connection
+
 	return []byte{0x78, 0x78, 1, 1, 0x0d, 0x0a}, nil
 }
 
 type PosititioningPacket struct {
-	Latitude  float32
-	Longitude float32
-	Speed     uint8
-	Heading   uint16
-	Timestamp int64
+	Latitude       float32
+	Longitude      float32
+	Speed          uint8
+	Heading        uint16
+	Timestamp      int64
+	ProtocolNumber uint8
+}
+
+func (p *PosititioningPacket) Process(device *Device, device_connectons map[string]net.Conn) ([]byte, error) {
+	if device.IMEI == "" {
+		return nil, errors.New("device is not logged in.")
+	}
 }
 
 //! check for logging in

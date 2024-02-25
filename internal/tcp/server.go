@@ -8,8 +8,6 @@ import (
 	"strconv"
 
 	"gpsitty/internal/database"
-
-	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -23,11 +21,11 @@ func NewServer(device_connections map[string]net.Conn) *Server {
 	port, _ := strconv.Atoi(os.Getenv("TCP_PORT"))
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		log.Fatal("failed to create tcp listener", err)
+		log.Fatal("FATAL: failed to create tcp listener", err)
 	}
 	db, err := database.New()
 	if err != nil {
-		log.Fatal("failed to create database service:", err)
+		log.Fatal("FATAL: failed to create database service:", err)
 	}
 	server := &Server{
 		port:               port,
@@ -41,16 +39,11 @@ func NewServer(device_connections map[string]net.Conn) *Server {
 type Device struct {
 	Connection net.Conn
 	IMEI       string
-	Logger     *zap.SugaredLogger
 }
 
 func (s *Server) Listen() {
 	defer s.listener.Close()
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		log.Fatal("failed to create zap logger:", err)
-	}
-	defer logger.Sync()
+
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -58,7 +51,6 @@ func (s *Server) Listen() {
 		}
 		device := Device{
 			Connection: conn,
-			Logger:     logger.Sugar(),
 		}
 		go device.handleConnection(s.device_connections)
 	}
@@ -66,27 +58,32 @@ func (s *Server) Listen() {
 
 func (d *Device) handleConnection(device_connections map[string]net.Conn) {
 	defer d.Connection.Close()
-	d.Logger.Infof("new connection from %s\n", d.Connection.RemoteAddr().String())
+	log.Printf("INFO: new connection from %s\n", d.Connection.RemoteAddr().String())
+
 	buffer := make([]byte, 512)
 	for {
 		n, err := d.Connection.Read(buffer)
 		if err != nil {
-			d.Logger.Errorf("failed to read from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			log.Printf("ERROR: failed to read from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			break
 		}
-		d.Logger.Infof("%v from %s\n", buffer[:n], d.Connection.RemoteAddr().String())
+
+		log.Printf("INFO: %v from %s\n", buffer[:n], d.Connection.RemoteAddr().String())
+
 		packet, err := parsePacket(d, device_connections, buffer[:n])
 		if err != nil {
-			d.Logger.Errorf("failed to parse packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			log.Printf("ERROR: failed to parse packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			continue
 		}
+
 		response, err := packet.Process(d, device_connections)
 		if err != nil {
-			d.Logger.Errorf("failed to process packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			log.Printf("ERROR: failed to process packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			continue
+
 		}
 		if _, err := d.Connection.Write(response); err != nil {
-			d.Logger.Errorf("failed to write to %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			log.Printf("ERROR: failed to write to %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			break
 		}
 	}
