@@ -1,42 +1,42 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"gpsitty/internal/database"
 
+	"github.com/gorilla/sessions"
 	_ "github.com/joho/godotenv/autoload"
+	"golang.org/x/oauth2"
 )
 
 type Server struct {
-	port               int
-	db                 database.Service
-	device_connections map[string]net.Conn
+	DB                 database.Service
+	Device_connections map[string]net.Conn
+	Conf               *oauth2.Config
+	Store              *sessions.CookieStore
 }
 
-func NewServer(device_connections map[string]net.Conn) *http.Server {
-	port, _ := strconv.Atoi(os.Getenv("PORT"))
-
+func NewServer(conf *oauth2.Config, store *sessions.CookieStore, device_connections map[string]net.Conn) *http.Server {
 	db, err := database.New()
 	if err != nil {
 		log.Fatal("failed to create database service:", err)
 	}
 
 	NewServer := &Server{
-		port:               port,
-		db:                 db,
-		device_connections: device_connections,
+		DB:                 db,
+		Device_connections: device_connections,
+		Conf:               conf,
+		Store:              store,
 	}
 
 	// Declare Server config
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", NewServer.port),
+		Addr:         ":" + os.Getenv("PORT"),
 		Handler:      NewServer.RegisterRoutes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,

@@ -1,49 +1,35 @@
 # Project gpsitty
 
-One Paragraph of project description goes here
+My own server implementation for gps trackers found on aliexpress
+
+The original program is named "365GPS"
 
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-## MakeFile
+### You need to have
 
-run all make commands with clean tests
-```bash
-make all build
-```
+1. Go >= 1.21 installed
+2. Nodejs installed
+3. MySQL database running
 
 build the application
+
 ```bash
-make build
+go build cmd/api/main.go
 ```
 
 run the application
-```bash
-make run
-```
 
-Create DB container
 ```bash
-make docker-run
-```
-
-Shutdown DB container
-```bash
-make docker-down
-```
-
-live reload the application
-```bash
-make watch
+go run cmd/api/main.go &
+cd client
+npm run dev
 ```
 
 run the test suite
-```bash
-make test
-```
 
-clean up binary from the last build
 ```bash
-make clean
+go test ./tests -v
 ```

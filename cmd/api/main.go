@@ -3,17 +3,39 @@ package main
 import (
 	"log"
 	"net"
+	"os"
 
 	"gpsitty/internal/auth"
 	"gpsitty/internal/server"
 	"gpsitty/internal/tcp"
+
+	"github.com/joho/godotenv"
 )
+
+const (
+	maxAge = 3600 * 3
+	isProd = false
+)
+
+func init() {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("failed to load .env file", err)
+	}
+
+	file, err := os.Create("/logs/logs.log")
+	if err != nil {
+		log.Fatalf("failed to create logs file: %v\n", err)
+	}
+
+	log.SetOutput(file)
+}
 
 func main() {
 	device_connections := make(map[string]net.Conn)
-	auth.New()
+	googleConf := auth.NewGoogleConfig("http://localhost:50731/auth/google/callback")
+	store := auth.NewCookieStore(maxAge, isProd)
 
-	server := server.NewServer(device_connections)
+	server := server.NewServer(googleConf, store, device_connections)
 	serverTcp := tcp.NewServer(device_connections)
 
 	go serverTcp.Listen()

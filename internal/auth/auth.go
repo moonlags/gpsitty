@@ -1,39 +1,38 @@
 package auth
 
 import (
-	"log"
 	"os"
 
 	"github.com/gorilla/sessions"
-	"github.com/joho/godotenv"
-	"github.com/markbates/goth"
-	"github.com/markbates/goth/gothic"
-	"github.com/markbates/goth/providers/google"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
-const (
-	maxAge = 86400 * 30
-	isProd = false
-)
-
-func New() {
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("failed to load .env file", err)
-	}
-
+func NewGoogleConfig(callback string) *oauth2.Config {
 	googleClientId := os.Getenv("GOOGLE_CLIENT_ID")
 	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
 
-	store := sessions.NewCookieStore([]byte(os.Getenv("COOKIE_KEY")))
-	store.MaxAge(maxAge)
+	conf := &oauth2.Config{
+		ClientID:     googleClientId,
+		ClientSecret: googleClientSecret,
+		RedirectURL:  callback,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
 
+	return conf
+}
+
+func NewCookieStore(maxAge int, secure bool) *sessions.CookieStore {
+	store := sessions.NewCookieStore([]byte(os.Getenv("COOKIE_KEY")))
+
+	store.MaxAge(maxAge)
 	store.Options.Path = "/"
 	store.Options.HttpOnly = true
-	store.Options.Secure = isProd
+	store.Options.Secure = secure
 
-	gothic.Store = store
-
-	goth.UseProviders(
-		google.New(googleClientId, googleClientSecret, "http://localhost:50731/auth/google/callback"),
-	)
+	return store
 }

@@ -14,8 +14,8 @@ import (
 
 type Service interface {
 	Health() map[string]string
-	GetUserWithDevices(userID string) (*UserWithDevices, error)
-	CreateUser(userID string, email string, avatar string) error
+	GetUser(userID string) (*User, error)
+	CreateUser(user User) error
 	InsertPosition(latitude float32, longitude float32, speed uint8, heading uint16, imei string) error
 }
 
@@ -55,14 +55,15 @@ func (s *service) Health() map[string]string {
 	}
 }
 
-type UserWithDevices struct {
-	UserID    string   `db:"id"`
-	Email     string   `db:"email"`
-	AvatarURL string   `db:"avatar"`
-	Devices   []string `db:"device_imei"`
+type User struct {
+	ID      string   `json:"sub,omitempty" db:"id"`
+	Name    string   `json:"name,omitempty"`
+	Picture string   `json:"picture,omitempty" db:"picture"`
+	Email   string   `json:"email,omitempty" db:"email"`
+	Devices []string `db:"device_imei"`
 }
 
-func (s *service) GetUserWithDevices(userID string) (*UserWithDevices, error) {
+func (s *service) GetUser(ID string) (*User, error) {
 	query := `
 		SELECT users.id, users.email, users.avatar, user_devices.device_imei
 		FROM users
@@ -70,21 +71,22 @@ func (s *service) GetUserWithDevices(userID string) (*UserWithDevices, error) {
 		WHERE users.id = $1
 	`
 
-	var user UserWithDevices
-	if err := s.db.Select(&user, query, userID); err != nil {
+	var user User
+	if err := s.db.Select(&user, query, ID); err != nil {
 		return nil, err
 	}
 
 	return &user, nil
 }
 
-func (s *service) CreateUser(userID string, email string, avatar string) error {
-	query := "INSERT INTO users (id,email,avatar) VALUES (:id,:email,:avatar) ON CONFLICT (id) DO UPDATE SET last_login_time = CURRENT_TIMESTAMP"
+func (s *service) CreateUser(user User) error {
+	query := "INSERT INTO users (id,name,email,avatar) VALUES (:id,:name,:email,:avatar) ON CONFLICT (id) DO UPDATE SET last_login_time = CURRENT_TIMESTAMP"
 
 	if _, err := s.db.NamedExec(query, map[string]interface{}{
-		"id":     userID,
-		"email":  email,
-		"avatar": avatar,
+		"id":     user.ID,
+		"email":  user.Email,
+		"avatar": user.Picture,
+		"name":   user.Name,
 	}); err != nil {
 		return err
 	}
