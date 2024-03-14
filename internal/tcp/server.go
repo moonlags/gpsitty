@@ -14,15 +14,15 @@ type Server struct {
 	DeviceConnections map[string]net.Conn
 }
 
-func NewServer(device_connections map[string]net.Conn) *Server {
+func NewServer(deviceConnections map[string]net.Conn) *Server {
 	db, err := database.New()
 	if err != nil {
 		log.Fatal("FATAL: failed to create database service:", err)
 	}
 
 	server := &Server{
-		db:                 db,
-		device_connections: device_connections,
+		DB:                db,
+		DeviceConnections: deviceConnections,
 	}
 
 	return server
@@ -66,13 +66,13 @@ func (d *Device) handleConnection(server *Server) {
 
 		fmt.Printf("INFO: %v from %s\n", buffer[:n], d.Connection.RemoteAddr().String())
 
-		packet, err := d.parsePacket(server.device_connections, buffer[:n])
+		packet, err := d.parsePacket(server.DeviceConnections, buffer[:n])
 		if err != nil {
 			fmt.Printf("ERROR: failed to parse packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			continue
 		}
 
-		response, err := packet.Process(d, device_connections)
+		response, err := packet.Process(d, server)
 		if err != nil {
 			fmt.Printf("ERROR: failed to process packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			continue
@@ -83,5 +83,5 @@ func (d *Device) handleConnection(server *Server) {
 			break
 		}
 	}
-	delete(device_connections, d.IMEI)
+	delete(server.DeviceConnections, d.IMEI)
 }

@@ -60,13 +60,13 @@ type LoginPacket struct {
 }
 
 func (p *LoginPacket) Process(device *Device, server *Server) ([]byte, error) {
-	if _, ok := device_connections[p.IMEI]; ok || device.IMEI != "" {
+	if _, ok := server.DeviceConnections[p.IMEI]; ok || device.IMEI != "" {
 		return nil, errors.New("device already logged in.")
 	}
 	fmt.Printf("INFO: device %s logged in\n", p.IMEI)
 
 	device.IMEI = p.IMEI
-	device_connections[p.IMEI] = device.Connection
+	server.DeviceConnections[p.IMEI] = device.Connection
 
 	return []byte{0x78, 0x78, 1, 1, 0x0d, 0x0a}, nil
 }
