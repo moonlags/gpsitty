@@ -15,7 +15,7 @@ import (
 )
 
 type Server struct {
-	DB                database.Service
+	DB                *database.Service
 	DeviceConnections map[string]net.Conn
 	Conf              *oauth2.Config
 	Store             *sessions.CookieStore

@@ -10,7 +10,7 @@ import (
 )
 
 type Server struct {
-	DB                database.Service
+	DB                *database.Service
 	DeviceConnections map[string]net.Conn
 }
 
@@ -66,7 +66,7 @@ func (d *Device) handleConnection(server *Server) {
 
 		fmt.Printf("INFO: %v from %s\n", buffer[:n], d.Connection.RemoteAddr().String())
 
-		packet, err := d.parsePacket(server.DeviceConnections, buffer[:n])
+		packet, err := d.parsePacket(buffer[:n])
 		if err != nil {
 			fmt.Printf("ERROR: failed to parse packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			continue

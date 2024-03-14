@@ -6,15 +6,16 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net"
 	"time"
+
+	"gpsitty/internal/database"
 )
 
 type Packet interface {
 	Process(device *Device, server *Server) ([]byte, error)
 }
 
-func (d *Device) parsePacket(device_connections map[string]net.Conn, packet []byte) (Packet, error) {
+func (d *Device) parsePacket(packet []byte) (Packet, error) {
 	if !bytes.HasPrefix(packet, []byte{0x78, 0x78}) || !bytes.HasSuffix(packet, []byte{0x0d, 0x0a}) {
 		return nil, errors.New("invalid packet format.")
 	}
@@ -53,11 +54,11 @@ func (d *Device) parsePacket(device_connections map[string]net.Conn, packet []by
 		}
 		return packetStruct, nil
 	case 0x13:
-		if packetLenght != 6 || packetLenght != 7 {
+		if packetLenght != 6 && packetLenght != 7 {
 			return nil, errors.New("invalid packet length.")
 		}
 
-		packetStruct := StatusPacket{
+		packetStruct := &StatusPacket{
 			BatteryPower: packet[4],
 		}
 
@@ -74,6 +75,10 @@ func (p *LoginPacket) Process(device *Device, server *Server) ([]byte, error) {
 		return nil, errors.New("device already logged in.")
 	}
 	fmt.Printf("INFO: device %s logged in\n", p.IMEI)
+
+	if err := server.DB.InsertDevice(database.Device{IMEI: device.IMEI}); err != nil {
+		return nil, err
+	}
 
 	device.IMEI = p.IMEI
 	server.DeviceConnections[p.IMEI] = device.Connection
@@ -122,7 +127,7 @@ func (p *StatusPacket) Process(device *Device, server *Server) ([]byte, error) {
 		return nil, errors.New("device is not logged in.")
 	}
 
-	if err := server.DB.UpdateBatteryPower(p.BatteryPower); err != nil {
+	if err := server.DB.UpdateBatteryPower(device.IMEI, p.BatteryPower); err != nil {
 		return nil, err
 	}
 

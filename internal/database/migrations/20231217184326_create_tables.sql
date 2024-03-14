@@ -1,32 +1,31 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS devices (
-    imei VARCHAR(20) PRIMARY KEY,
-    battery_power INT NOT NULL,
-    status_cooldown INT NOT NULL,
-    charging BOOLEAN NOT NULL,
+    imei TEXT PRIMARY KEY,
+    battery_power INTEGER NOT NULL,
+    charging INTEGER NOT NULL,
     last_status_packet TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS positions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    latitude DOUBLE NOT NULL,
-    longitude DOUBLE NOT NULL,
-    speed SMALLINT NOT NULL,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    speed INTEGER NOT NULL,
     heading INTEGER NOT NULL,
-    device_imei VARCHAR(20) NOT NULL,
+    device_imei TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (device_imei) REFERENCES devices(imei)
 );
 CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(255) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    avatar VARCHAR(255) NOT NULL,
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    avatar TEXT NOT NULL,
     last_login_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS user_devices (
-    userid VARCHAR(255) NOT NULL,
-    device_imei VARCHAR(20) NOT NULL,
+    userid TEXT NOT NULL,
+    device_imei TEXT NOT NULL,
     PRIMARY KEY (userid, device_imei),
     FOREIGN KEY (userid) REFERENCES users(id),
     FOREIGN KEY (device_imei) REFERENCES devices(imei)
