@@ -9,8 +9,6 @@ import (
 	"gpsitty/internal/database"
 )
 
-// ! AUTH MIDDLEWARE
-
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 

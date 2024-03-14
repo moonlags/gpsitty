@@ -31,12 +31,12 @@ func init() {
 }
 
 func main() {
-	device_connections := make(map[string]net.Conn)
+	deviceConnections := make(map[string]net.Conn)
 	googleConf := auth.NewGoogleConfig("http://localhost:50731/auth/google/callback")
 	store := auth.NewCookieStore(maxAge, isProd)
 
-	server := server.NewServer(googleConf, store, device_connections)
-	serverTcp := tcp.NewServer(device_connections)
+	server := server.NewServer(googleConf, store, deviceConnections)
+	serverTcp := tcp.NewServer(deviceConnections)
 
 	go serverTcp.Listen()
 

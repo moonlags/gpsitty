@@ -68,7 +68,7 @@ func (s *service) GetUser(ID string) (*User, error) {
 		SELECT users.id, users.email, users.avatar, user_devices.device_imei
 		FROM users
 		INNER JOIN user_devices ON users.id = user_devices.userid
-		WHERE users.id = $1
+		WHERE users.id = $1;
 	`
 
 	var user User
@@ -80,7 +80,7 @@ func (s *service) GetUser(ID string) (*User, error) {
 }
 
 func (s *service) CreateUser(user User) error {
-	query := "INSERT INTO users (id,name,email,avatar) VALUES (:id,:name,:email,:avatar) ON CONFLICT (id) DO UPDATE SET last_login_time = CURRENT_TIMESTAMP"
+	query := "INSERT INTO users (id,name,email,avatar) VALUES (:id,:name,:email,:avatar) ON DUPLICATE KEY UPDATE SET last_login_time = CURRENT_TIMESTAMP;"
 
 	if _, err := s.db.NamedExec(query, map[string]interface{}{
 		"id":     user.ID,
@@ -95,13 +95,11 @@ func (s *service) CreateUser(user User) error {
 }
 
 func (s *service) InsertPosition(latitude float32, longitude float32, speed uint8, heading uint16, imei string) error {
-	query := `WITH inserted_row AS(
-		INSERT INTO positions (latitude,longitude,speed,heading,device_imei)
-		VALUES (:latitude,:longitude,:speed,:heading,:device_imei)
-		RETURNING *
-	)
+	query := `INSERT INTO positions (latitude,longitude,speed,heading,device_imei)
+		VALUES (:latitude,:longitude,:speed,:heading,:device_imei);
+	
 	DELETE FROM positions
-	WHERE id IN(
+	WHERE id IN (
 		SELECT id FROM (SELECT id FROM positions WHERE device_imei=:device_imei ORDER BY created_at ASC OFFSET 10) as subquery
 	);`
 

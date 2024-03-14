@@ -5,16 +5,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"log"
+	"fmt"
 	"net"
 	"time"
 )
 
 type Packet interface {
-	Process(device *Device, device_connections map[string]net.Conn) ([]byte, error)
+	Process(device *Device, server *Server) ([]byte, error)
 }
 
-func parsePacket(device *Device, device_connections map[string]net.Conn, packet []byte) (Packet, error) {
+func (d *Device) parsePacket(device_connections map[string]net.Conn, packet []byte) (Packet, error) {
 	if !bytes.HasPrefix(packet, []byte{0x78, 0x78}) || !bytes.HasSuffix(packet, []byte{0x0d, 0x0a}) {
 		return nil, errors.New("invalid packet format.")
 	}
@@ -59,11 +59,11 @@ type LoginPacket struct {
 	IMEI string
 }
 
-func (p *LoginPacket) Process(device *Device, device_connections map[string]net.Conn) ([]byte, error) {
+func (p *LoginPacket) Process(device *Device, server *Server) ([]byte, error) {
 	if _, ok := device_connections[p.IMEI]; ok || device.IMEI != "" {
 		return nil, errors.New("device already logged in.")
 	}
-	log.Printf("INFO: device %s logged in\n", p.IMEI)
+	fmt.Printf("INFO: device %s logged in\n", p.IMEI)
 
 	device.IMEI = p.IMEI
 	device_connections[p.IMEI] = device.Connection
@@ -80,16 +80,18 @@ type PosititioningPacket struct {
 	ProtocolNumber uint8
 }
 
-func (p *PosititioningPacket) Process(device *Device, device_connectons map[string]net.Conn) ([]byte, error) {
+func (p *PosititioningPacket) Process(device *Device, server *Server) ([]byte, error) {
 	if device.IMEI == "" {
 		return nil, errors.New("device is not logged in.")
 	}
+
+	// if err :=
+
+	now := time.Now()
 }
 
-//! check for logging in
-
 func (s *Server) ProcessPositioning(packet PosititioningPacket, protocolNumber uint8, conn net.Conn) ([]byte, error) {
-	log.Printf("new positioning packet %v", packet)
+	fmt.Printf("new positioning packet %v", packet)
 
 	if err := s.db.InsertPosition(packet.Latitude, packet.Longitude, packet.Speed, packet.Heading, s.logged_connections[conn]); err != nil {
 		return nil, err

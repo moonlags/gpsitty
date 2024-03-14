@@ -5,34 +5,26 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 
 	"gpsitty/internal/database"
 )
 
 type Server struct {
-	port               int
-	db                 database.Service
-	listener           net.Listener
-	device_connections map[string]net.Conn
+	DB                database.Service
+	DeviceConnections map[string]net.Conn
 }
 
 func NewServer(device_connections map[string]net.Conn) *Server {
-	port, _ := strconv.Atoi(os.Getenv("TCP_PORT"))
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		log.Fatal("FATAL: failed to create tcp listener", err)
-	}
 	db, err := database.New()
 	if err != nil {
 		log.Fatal("FATAL: failed to create database service:", err)
 	}
+
 	server := &Server{
-		port:               port,
 		db:                 db,
-		listener:           listener,
 		device_connections: device_connections,
 	}
+
 	return server
 }
 
@@ -42,48 +34,52 @@ type Device struct {
 }
 
 func (s *Server) Listen() {
-	defer s.listener.Close()
+	listener, err := net.Listen("tcp", ":"+os.Getenv("TCP_PORT"))
+	if err != nil {
+		log.Fatal("FATAL: failed to create tcp listener", err)
+	}
+	defer listener.Close()
 
 	for {
-		conn, err := s.listener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			continue
 		}
 		device := Device{
 			Connection: conn,
 		}
-		go device.handleConnection(s.device_connections)
+		go device.handleConnection(s)
 	}
 }
 
-func (d *Device) handleConnection(device_connections map[string]net.Conn) {
+func (d *Device) handleConnection(server *Server) {
 	defer d.Connection.Close()
-	log.Printf("INFO: new connection from %s\n", d.Connection.RemoteAddr().String())
+	fmt.Printf("INFO: new connection from %s\n", d.Connection.RemoteAddr().String())
 
 	buffer := make([]byte, 512)
 	for {
 		n, err := d.Connection.Read(buffer)
 		if err != nil {
-			log.Printf("ERROR: failed to read from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			fmt.Printf("ERROR: failed to read from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			break
 		}
 
-		log.Printf("INFO: %v from %s\n", buffer[:n], d.Connection.RemoteAddr().String())
+		fmt.Printf("INFO: %v from %s\n", buffer[:n], d.Connection.RemoteAddr().String())
 
-		packet, err := parsePacket(d, device_connections, buffer[:n])
+		packet, err := d.parsePacket(server.device_connections, buffer[:n])
 		if err != nil {
-			log.Printf("ERROR: failed to parse packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			fmt.Printf("ERROR: failed to parse packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			continue
 		}
 
 		response, err := packet.Process(d, device_connections)
 		if err != nil {
-			log.Printf("ERROR: failed to process packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			fmt.Printf("ERROR: failed to process packet from %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			continue
 
 		}
 		if _, err := d.Connection.Write(response); err != nil {
-			log.Printf("ERROR: failed to write to %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
+			fmt.Printf("ERROR: failed to write to %s: %s\n", d.Connection.RemoteAddr().String(), err.Error())
 			break
 		}
 	}

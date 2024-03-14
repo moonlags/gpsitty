@@ -15,23 +15,23 @@ import (
 )
 
 type Server struct {
-	DB                 database.Service
-	Device_connections map[string]net.Conn
-	Conf               *oauth2.Config
-	Store              *sessions.CookieStore
+	DB                database.Service
+	DeviceConnections map[string]net.Conn
+	Conf              *oauth2.Config
+	Store             *sessions.CookieStore
 }
 
-func NewServer(conf *oauth2.Config, store *sessions.CookieStore, device_connections map[string]net.Conn) *http.Server {
+func NewServer(conf *oauth2.Config, store *sessions.CookieStore, deviceConnections map[string]net.Conn) *http.Server {
 	db, err := database.New()
 	if err != nil {
 		log.Fatal("failed to create database service:", err)
 	}
 
 	NewServer := &Server{
-		DB:                 db,
-		Device_connections: device_connections,
-		Conf:               conf,
-		Store:              store,
+		DB:                db,
+		DeviceConnections: deviceConnections,
+		Conf:              conf,
+		Store:             store,
 	}
 
 	// Declare Server config
