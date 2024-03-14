@@ -52,6 +52,16 @@ func (d *Device) parsePacket(device_connections map[string]net.Conn, packet []by
 			Timestamp: time.Now().Unix(),
 		}
 		return packetStruct, nil
+	case 0x13:
+		if packetLenght != 6 || packetLenght != 7 {
+			return nil, errors.New("invalid packet length.")
+		}
+
+		packetStruct := StatusPacket{
+			BatteryPower: packet[4],
+		}
+
+		return packetStruct, nil
 	}
 }
 
@@ -85,22 +95,41 @@ func (p *PosititioningPacket) Process(device *Device, server *Server) ([]byte, e
 		return nil, errors.New("device is not logged in.")
 	}
 
-	// if err :=
-
-	now := time.Now()
-}
-
-func (s *Server) ProcessPositioning(packet PosititioningPacket, protocolNumber uint8, conn net.Conn) ([]byte, error) {
-	fmt.Printf("new positioning packet %v", packet)
-
-	if err := s.db.InsertPosition(packet.Latitude, packet.Longitude, packet.Speed, packet.Heading, s.logged_connections[conn]); err != nil {
+	if err := server.DB.InsertPosition(p.Latitude, p.Longitude, p.Speed, p.Heading, device.IMEI); err != nil {
 		return nil, err
 	}
 
-	timeNow := time.Now()
+	now := time.Now()
+	return []byte{0x78, 0x78, 7, p.ProtocolNumber, byte(now.Year() - 2000), byte(now.Month()), byte(now.Day()), byte(now.Hour()), byte(now.Minute()), byte(now.Second()), 0x0d, 0x0a}, nil
+}
 
-	return []byte{
-		0x78, 0x78, 7, protocolNumber, byte(timeNow.Year() - 2000), byte(timeNow.Month()), byte(timeNow.Day()), byte(timeNow.Hour()),
-		byte(timeNow.Minute()), byte(timeNow.Second()), 0x0d, 0x0a,
-	}, nil
+type HeartBeatPacket struct{}
+
+func (p *HeartBeatPacket) Process(device *Device, server *Server) ([]byte, error) {
+	if device.IMEI == "" {
+		return nil, errors.New("device is not logged in.")
+	}
+
+	return []byte{0x78, 0x78, 1, 8, 0x0d, 0x0a}, nil
+}
+
+type StatusPacket struct {
+	BatteryPower byte
+}
+
+func (p *StatusPacket) Process(device *Device, server *Server) ([]byte, error) {
+	if device.IMEI == "" {
+		return nil, errors.New("device is not logged in.")
+	}
+
+	if err := server.DB.UpdateBatteryPower(p.BatteryPower); err != nil {
+		return nil, err
+	}
+
+	var cooldown byte = 1
+	if p.BatteryPower <= 15 {
+		cooldown = 5
+	}
+
+	return []byte{0x78, 0x78, 2, 0x13, cooldown, 0x0d, 0x0a}, nil
 }
