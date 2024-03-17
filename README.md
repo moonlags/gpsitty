@@ -23,7 +23,7 @@ go build cmd/api/main.go
 run the application
 
 ```bash
-go run cmd/api/main.go &
+go run cmd/api/main.go > /logs/logs.log &
 cd client
 npm run dev
 ```
