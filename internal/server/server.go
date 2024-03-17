@@ -1,13 +1,12 @@
 package server
 
 import (
-	"log"
-	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"gpsitty/internal/database"
+	"gpsitty/internal/tcp"
 
 	"github.com/gorilla/sessions"
 	_ "github.com/joho/godotenv/autoload"
@@ -15,23 +14,23 @@ import (
 )
 
 type Server struct {
-	DB                *database.Service
-	DeviceConnections map[string]net.Conn
-	Conf              *oauth2.Config
-	Store             *sessions.CookieStore
+	DB      *database.Service
+	Devices map[string]*tcp.Device
+	Conf    *oauth2.Config
+	Store   *sessions.CookieStore
 }
 
-func NewServer(conf *oauth2.Config, store *sessions.CookieStore, deviceConnections map[string]net.Conn) *http.Server {
-	db, err := database.New()
+func NewServer(conf *oauth2.Config, store *sessions.CookieStore, devices map[string]*tcp.Device) (*http.Server, error) {
+	database, err := database.New()
 	if err != nil {
-		log.Fatal("failed to create database service:", err)
+		return nil, err
 	}
 
 	NewServer := &Server{
-		DB:                db,
-		DeviceConnections: deviceConnections,
-		Conf:              conf,
-		Store:             store,
+		DB:      database,
+		Devices: devices,
+		Conf:    conf,
+		Store:   store,
 	}
 
 	// Declare Server config
@@ -43,5 +42,5 @@ func NewServer(conf *oauth2.Config, store *sessions.CookieStore, deviceConnectio
 		WriteTimeout: 30 * time.Second,
 	}
 
-	return server
+	return server, nil
 }

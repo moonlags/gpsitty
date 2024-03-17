@@ -2,8 +2,6 @@ package main
 
 import (
 	"log"
-	"net"
-	"os"
 
 	"gpsitty/internal/auth"
 	"gpsitty/internal/server"
@@ -21,27 +19,27 @@ func init() {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("failed to load .env file", err)
 	}
-
-	file, err := os.Create("/logs/logs.log")
-	if err != nil {
-		log.Fatalf("failed to create logs file: %v\n", err)
-	}
-
-	log.SetOutput(file)
 }
 
 func main() {
-	deviceConnections := make(map[string]net.Conn)
 	googleConf := auth.NewGoogleConfig("http://localhost:50731/auth/google/callback")
 	store := auth.NewCookieStore(maxAge, isProd)
 
-	server := server.NewServer(googleConf, store, deviceConnections)
-	serverTcp := tcp.NewServer(deviceConnections)
+	devices := make(map[string]*tcp.Device)
 
-	go serverTcp.Listen()
-
-	err := server.ListenAndServe()
+	server, err := server.NewServer(googleConf, store, devices)
 	if err != nil {
-		log.Fatal("failed to start server:", err)
+		log.Fatalf("failed to create http server: %v\n", err)
 	}
+
+	serverTcp, err := tcp.NewServer(devices)
+	if err != nil {
+		log.Fatalf("failed to create tcp server: %v\n", err)
+	}
+
+	go func() {
+		log.Fatal(serverTcp.Listen())
+	}()
+
+	log.Fatal(server.ListenAndServe())
 }

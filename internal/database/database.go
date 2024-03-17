@@ -1,41 +1,26 @@
 package database
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"net"
-	"time"
+	"os"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 )
 
 type Service struct {
-	db *sqlx.DB
+	DB *sqlx.DB
 }
 
 func New() (*Service, error) {
-	db, err := sqlx.Connect("sqlite3", "gpsitty.db")
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", os.Getenv("DB_USERNAME"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_NAME"))
+
+	database, err := sqlx.Connect("postgres", connStr)
 	if err != nil {
 		return nil, err
 	}
-	s := &Service{db: db}
+	s := &Service{DB: database}
 	return s, nil
-}
-
-func (s *Service) Health() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	err := s.db.PingContext(ctx)
-	if err != nil {
-		log.Fatalf(fmt.Sprintf("db down: %v", err))
-	}
-
-	return map[string]string{
-		"message": "It's healthy",
-	}
 }
 
 type User struct {
@@ -54,7 +39,7 @@ func (s *Service) GetUser(ID string) (*User, error) {
 	`
 
 	var user User
-	if err := s.db.Select(&user, query, ID); err != nil {
+	if err := s.DB.Select(&user, query, ID); err != nil {
 		return nil, err
 	}
 
@@ -63,11 +48,9 @@ func (s *Service) GetUser(ID string) (*User, error) {
 		FROM user_devices
 		WHERE userid = $1;
 	`
-	if err := s.db.Select(user.Devices, query, ID); err != nil {
+	if err := s.DB.Select(user.Devices, query, ID); err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("get user query: %v\n", user)
 
 	return &user, nil
 }
@@ -75,16 +58,13 @@ func (s *Service) GetUser(ID string) (*User, error) {
 func (s *Service) CreateUser(user User) error {
 	query := "INSERT INTO users (id,name,email,avatar) VALUES (:id,:name,:email,:avatar) ON CONFLICT(id) DO UPDATE SET last_login_time = CURRENT_TIMESTAMP;"
 
-	if _, err := s.db.NamedExec(query, map[string]interface{}{
+	_, err := s.DB.NamedExec(query, map[string]interface{}{
 		"id":     user.ID,
 		"email":  user.Email,
 		"avatar": user.Picture,
 		"name":   user.Name,
-	}); err != nil {
-		return err
-	}
-
-	return nil
+	})
+	return err
 }
 
 func (s *Service) InsertPosition(latitude float32, longitude float32, speed uint8, heading uint16, imei string) error {
@@ -93,47 +73,50 @@ func (s *Service) InsertPosition(latitude float32, longitude float32, speed uint
 	
 	DELETE FROM positions
 	WHERE id IN (
-		SELECT id FROM (SELECT id FROM positions WHERE device_imei=:device_imei ORDER BY created_at DESC LIMIT -1 OFFSET 10)
+		SELECT id FROM FROM positions WHERE device_imei=:device_imei ORDER BY created_at DESC OFFSET 10)
 	);`
 
-	if _, err := s.db.NamedExec(query, map[string]interface{}{
+	_, err := s.DB.NamedExec(query, map[string]interface{}{
 		"latitude":    latitude,
 		"longitude":   longitude,
 		"speed":       speed,
 		"heading":     heading,
 		"device_imei": imei,
-	}); err != nil {
-		return err
-	}
-
-	return nil
+	})
+	return err
 }
 
 func (s *Service) UpdateBatteryPower(imei string, batteryPower byte) error {
 	query := `UPDATE SET battery_power = $1 WHERE imei = $2;`
 
-	if _, err := s.db.Query(query, batteryPower, imei); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := s.DB.Exec(query, batteryPower, imei)
+	return err
 }
 
 type Device struct {
-	Connection       net.Conn `json:"connection,omitempty"`
-	IMEI             string   `json:"imei,omitempty" db:"imei"`
-	BatteryPower     byte     `json:"battery_power,omitempty" db:"battery_power"`
-	IsCharging       byte     `json:"is_charging,omitempty" db:"charging"`
-	LastStatusPacket int64    `json:"last_status_packet,omitempty" db:"last_status_packet"`
+	IMEI             string `json:"imei,omitempty" db:"imei"`
+	BatteryPower     byte   `json:"battery_power,omitempty" db:"battery_power"`
+	IsCharging       bool   `json:"is_charging,omitempty" db:"charging"`
+	LastStatusPacket int64  `json:"last_status_packet,omitempty" db:"last_status_packet"`
 }
 
 func (s *Service) InsertDevice(device Device) error {
 	query := `INSERT INTO devices (imei, battery_power, charging) VALUES (:imei,:battery_power,:charging);`
 
-	if _, err := s.db.NamedExec(query, device); err != nil {
-		return err
-	}
-	return nil
+	_, err := s.DB.NamedExec(query, device)
+	return err
 }
 
-//! get device
+func (s *Service) LinkDevice(imei string, userID string) error {
+	query := `INSERT INTO user_devices (userid, device_imei) VALUES ($1, $2);`
+
+	_, err := s.DB.Exec(query, userID, imei)
+	return err
+}
+
+func (s *Service) Charging(charging bool, imei string) error {
+	query := `UPDATE devices SET charging = $1 WHERE imei = $2;`
+
+	_, err := s.DB.Exec(query, charging, imei)
+	return err
+}

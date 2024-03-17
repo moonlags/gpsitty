@@ -12,13 +12,12 @@ import (
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", s.HealthHandler)
-
 	mux.HandleFunc("/auth/google/callback", s.AuthCallbackHandler)
-	mux.HandleFunc("/logout", s.LogoutHandler)
+	mux.HandleFunc("/auth/logout", s.LogoutHandler)
 	mux.HandleFunc("/auth/google", s.AuthHandler)
 
-	mux.HandleFunc("/session", s.GetSession)
+	mux.HandleFunc("/api/session", s.GetSession)
+	mux.HandleFunc("POST /api/link-device", s.LinkDevice)
 
 	handler := CorsMiddleware(mux)
 
@@ -39,11 +38,6 @@ func CorsMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
-	jsonResp, _ := json.Marshal(s.DB.Health())
-	_, _ = w.Write(jsonResp)
 }
 
 func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -135,5 +129,30 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
-	panic("not implemented") // todo
+	session, err := s.Store.Get(r, "gpsitty")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("failed to get session: %v\n", err)
+		return
+	}
+
+	var data struct {
+		DeviceImei string `json:"device_imei"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("failed to decode json: %v\n", err)
+		return
+	}
+
+	if err := s.DB.LinkDevice(data.DeviceImei, session.Values["id"].(string)); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("failed to link device: %v\n", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
+
+// TODO: 0x14 sleep route; 0x48 restart; 0x48 shutdown; 0x61 light switch; 0x92 alarm on;0x93 alarm off
