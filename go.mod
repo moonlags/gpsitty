@@ -9,12 +9,16 @@ require (
 
 require (
 	cloud.google.com/go v0.67.0 // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/go-chi/chi/v5 v5.0.12 // indirect
+	github.com/go-chi/httprate v0.9.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 )
 
 require (
+	github.com/go-chi/cors v1.2.1
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/gorilla/sessions v1.2.2

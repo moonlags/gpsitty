@@ -5,39 +5,35 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"gpsitty/internal/database"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
-	mux := http.NewServeMux()
+	r := chi.NewRouter()
 
-	mux.HandleFunc("/auth/google/callback", s.AuthCallbackHandler)
-	mux.HandleFunc("/auth/logout", s.LogoutHandler)
-	mux.HandleFunc("/auth/google", s.AuthHandler)
+	r.Use(middleware.Logger, middleware.Recoverer, httprate.LimitByIP(100, 1*time.Minute))
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}))
 
-	mux.HandleFunc("/api/session", s.GetSession)
-	mux.HandleFunc("POST /api/link-device", s.LinkDevice)
+	r.Get("/auth/google/callback", s.AuthCallbackHandler)
+	r.Get("/auth/google", s.AuthHandler)
+	r.Get("/auth/logout", s.LogoutHandler)
 
-	handler := CorsMiddleware(mux)
+	r.Get("/api/session", s.GetSession)
+	r.Get("/api/link/{imei}", s.LinkDevice)
 
-	return handler
-}
-
-func CorsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+	return r
 }
 
 func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -136,17 +132,9 @@ func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data struct {
-		DeviceImei string `json:"device_imei"`
-	}
+	deviceImei := chi.URLParam(r, "imei")
 
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Printf("failed to decode json: %v\n", err)
-		return
-	}
-
-	if err := s.DB.LinkDevice(data.DeviceImei, session.Values["id"].(string)); err != nil {
+	if err := s.DB.LinkDevice(deviceImei, session.Values["id"].(string)); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("failed to link device: %v\n", err)
 		return
