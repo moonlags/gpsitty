@@ -56,14 +56,20 @@ func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	var user database.User
+	var user struct {
+		ID      string `json:"sub,omitempty"`
+		Name    string `json:"name,omitempty"`
+		Picture string `json:"picture,omitempty"`
+		Email   string `json:"email,omitempty"`
+	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("failed to decode json: %v\n", err)
 		return
 	}
 
-	if err := s.DB.CreateUser(user); err != nil {
+	if _, err := s.Queries.CreateUser(context.Background(), database.CreateUserParams{ID: user.ID, Name: user.Name, Email: user.Email, Avatar: user.Picture}); err != nil {
 		log.Fatal("failed to create user:", err)
 	}
 
@@ -107,7 +113,7 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.DB.GetUser(session.Values["id"].(string))
+	user, err := s.Queries.GetUser(context.Background(), session.Values["id"].(string))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		log.Printf("failed to get user: %v\n", err)
@@ -134,7 +140,7 @@ func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
 
 	deviceImei := chi.URLParam(r, "imei")
 
-	if err := s.DB.LinkDevice(deviceImei, session.Values["id"].(string)); err != nil {
+	if err := s.Queries.LinkDevice(context.Background(), database.LinkDeviceParams{DeviceImei: deviceImei, Userid: session.Values["id"].(string)}); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("failed to link device: %v\n", err)
 		return

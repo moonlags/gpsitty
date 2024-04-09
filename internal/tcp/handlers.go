@@ -2,6 +2,7 @@ package tcp
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -52,7 +53,7 @@ func (d *Device) ParsePacket(buffer []byte, server *Server) ([]byte, error) {
 			Heading:   uint16(buffer[21]) | (uint16(buffer[20]&3) << 8),
 		}
 
-		return packet.Process(d, server.DB)
+		return packet.Process(d, server.Queries)
 	case 0x13:
 		if packetLenght != 6 && packetLenght != 7 {
 			return nil, errors.New("invalid packet length")
@@ -62,7 +63,7 @@ func (d *Device) ParsePacket(buffer []byte, server *Server) ([]byte, error) {
 			BatteryPower: buffer[4],
 		}
 
-		return packet.Process(d, server.DB)
+		return packet.Process(d, server.Queries)
 	case 0x30:
 		if packetLenght != 1 {
 			return nil, errors.New("invalid packet length")
@@ -77,7 +78,7 @@ func (d *Device) ParsePacket(buffer []byte, server *Server) ([]byte, error) {
 			return nil, errors.New("device is not logged in")
 		}
 
-		if err := server.DB.Charging(false, d.IMEI); err != nil {
+		if err := server.Queries.UpdateCharging(context.Background(), database.UpdateChargingParams{Charging: false, Imei: d.IMEI}); err != nil {
 			return nil, err
 		}
 
@@ -89,7 +90,7 @@ func (d *Device) ParsePacket(buffer []byte, server *Server) ([]byte, error) {
 			return nil, errors.New("device is not logged in")
 		}
 
-		if err := server.DB.Charging(false, d.IMEI); err != nil {
+		if err := server.Queries.UpdateCharging(context.Background(), database.UpdateChargingParams{Charging: true, Imei: d.IMEI}); err != nil {
 			return nil, err
 		}
 
@@ -119,7 +120,7 @@ func (p *LoginPacket) Process(device *Device, server *Server) ([]byte, error) {
 		return nil, errors.New("device already logged in")
 	}
 
-	if err := server.DB.InsertDevice(database.Device{IMEI: p.IMEI}); err != nil {
+	if _, err := server.Queries.InsertDevice(context.Background(), database.InsertDeviceParams{Imei: p.IMEI}); err != nil {
 		return nil, err
 	}
 
@@ -137,12 +138,14 @@ type PosititioningPacket struct {
 	ProtocolNumber uint8
 }
 
-func (p *PosititioningPacket) Process(device *Device, database *database.Service) ([]byte, error) {
+func (p *PosititioningPacket) Process(device *Device, queries *database.Queries) ([]byte, error) {
 	if device.IMEI == "" {
 		return nil, errors.New("device is not logged in")
 	}
 
-	if err := database.InsertPosition(p.Latitude, p.Longitude, p.Speed, p.Heading, device.IMEI); err != nil {
+	if err := queries.CreatePosition(context.Background(), database.CreatePositionParams{
+		Latitude: float64(p.Latitude), Longitude: float64(p.Longitude), Speed: int16(p.Speed), Heading: int16(p.Heading), DeviceImei: device.IMEI,
+	}); err != nil {
 		return nil, err
 	}
 
@@ -154,12 +157,12 @@ type StatusPacket struct {
 	BatteryPower byte
 }
 
-func (p *StatusPacket) Process(device *Device, database *database.Service) ([]byte, error) {
+func (p *StatusPacket) Process(device *Device, queries *database.Queries) ([]byte, error) {
 	if device.IMEI == "" {
 		return nil, errors.New("device is not logged in")
 	}
 
-	if err := database.UpdateBatteryPower(device.IMEI, p.BatteryPower); err != nil {
+	if err := queries.UpdateBatteryPower(context.Background(), database.UpdateBatteryPowerParams{Imei: device.IMEI, BatteryPower: int16(p.BatteryPower)}); err != nil {
 		return nil, err
 	}
 

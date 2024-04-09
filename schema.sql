@@ -1,10 +1,10 @@
-CREATE TABLE IF NOT EXISTS devices (
+CREATE TABLE devices (
     imei VARCHAR(20) PRIMARY KEY,
     battery_power SMALLINT NOT NULL,
     charging BOOLEAN NOT NULL,
     last_status_packet TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS positions (
+CREATE TABLE positions (
     id SERIAL PRIMARY KEY,
     latitude float8 NOT NULL,
     longitude float8 NOT NULL,
@@ -14,14 +14,14 @@ CREATE TABLE IF NOT EXISTS positions (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (device_imei) REFERENCES devices(imei)
 );
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id VARCHAR(20) PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
-    email VARCHAR(50) UNIQUE,
+    email VARCHAR(50) UNIQUE NOT NULL,
     avatar VARCHAR(100) NOT NULL,
     last_login_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS user_devices (
+CREATE TABLE user_devices (
     userid VARCHAR(20) NOT NULL,
     device_imei VARCHAR(20) NOT NULL,
     PRIMARY KEY (userid, device_imei),

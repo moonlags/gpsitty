@@ -1,6 +1,8 @@
 package tcp
 
 import (
+	"database/sql"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -9,18 +11,21 @@ import (
 )
 
 type Server struct {
-	DB      *database.Service
+	Queries *database.Queries
 	Devices map[string]*Device
 }
 
 func NewServer(devices map[string]*Device) (*Server, error) {
-	database, err := database.New()
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", os.Getenv("DB_USERNAME"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_NAME"))
+
+	conn, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
 	}
+	queries := database.New(conn)
 
 	server := &Server{
-		DB:      database,
+		Queries: queries,
 		Devices: devices,
 	}
 
