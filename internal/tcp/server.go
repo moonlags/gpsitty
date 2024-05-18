@@ -22,6 +22,7 @@ func NewServer(devices map[string]*Device) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	queries := database.New(conn)
 
 	server := &Server{

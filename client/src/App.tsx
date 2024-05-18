@@ -1,33 +1,35 @@
-import { useState } from "react";
-import contentWarning from "/content_warning.webm";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { User } from "./components/UserInfo";
+import NavBar from "./components/Navbar";
+import DevicesView from "./components/DevicesView";
+import IntorductionPage from "./components/IntroductionPage";
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [user, setUser] = useState<User>();
 
-  const handleLogin = () => {
-    window.location.href = "http://localhost:50731/auth/google";
-  };
+  useEffect(() => {
+    axios
+      .get("http://localhost:50731/v1/session", { withCredentials: true })
+      .then((response) => {
+        if (response.status === 200) {
+          setUser(response.data);
+        }
+        // todo: else toast
+      })
+      .catch((err) => {
+        console.error(err);
+        // todo: toast
+      });
+  }, []);
 
   return (
-    <div className="h-screen w-full justify-center flex items-center flex-col gap-12">
-      <video controls className="rounded-lg shadow-xl border-2 border-gray-500">
-        <source src={contentWarning} type="video/webm" />
-      </video>
-      <div className="flex flex-row gap-10">
-        <button
-          className="bg-gray-300 px-10 py-3 rounded-md shadow-md font-bold hover:scale-110 duration-100"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          count is {count}
-        </button>
-        <button
-          className="bg-gray-300 px-10 py-3 rounded-md shadow-md font-bold hover:scale-110 duration-100"
-          onClick={handleLogin}
-        >
-          Login
-        </button>
+    <main className="flex h-screen flex-col">
+      <NavBar {...user} />
+      <div className="flex p-10">
+        {user ? <DevicesView /> : <IntorductionPage />}
       </div>
-    </div>
+    </main>
   );
 }
 

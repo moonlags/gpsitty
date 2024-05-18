@@ -102,9 +102,9 @@ func (d *Device) ParsePacket(buffer []byte, server *Server) ([]byte, error) {
 
 		now := time.Now()
 		return []byte{0x78, 0x78, 7, 0x30, hexToDec(now.Year() - 2000), hexToDec(int(now.Month())), hexToDec(now.Day()), hexToDec(now.Hour()), hexToDec(now.Minute()), hexToDec(now.Second()), 0x0d, 0x0a}, nil
+	case 0x15:
+		return []byte{0x78, 0x78, 1, 0x15, 0x0d, 0x0a}, nil
 	}
-
-	// TODO: 0x15 factory reset
 }
 
 func hexToDec(hex_byte int) byte {

@@ -20,7 +20,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.Use(middleware.Logger, middleware.Recoverer, httprate.LimitByIP(100, 1*time.Minute))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{"http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -30,8 +30,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.Get("/auth/google", s.AuthHandler)
 	r.Get("/auth/logout", s.LogoutHandler)
 
-	r.Get("/api/session", s.GetSession)
-	r.Get("/api/link/{imei}", s.LinkDevice)
+	r.Get("/v1/session", s.GetSession)
+	r.Get("/v1/link/{imei}", s.LinkDevice)
+	r.Get("/v1/devices", s.GetDevices)
 
 	return r
 }
@@ -39,7 +40,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	token, err := s.Conf.Exchange(context.Background(), r.FormValue("code"))
 	if err != nil {
-		log.Fatalf("failed to exchange: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("failed to exchange: %v\n", err)
+		return
 	}
 
 	if !token.Valid() {
@@ -69,7 +72,7 @@ func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.Queries.CreateUser(context.Background(), database.CreateUserParams{ID: user.ID, Name: user.Name, Email: user.Email, Avatar: user.Picture}); err != nil {
+	if err := s.Queries.CreateUser(context.Background(), database.CreateUserParams{ID: user.ID, Name: user.Name, Email: user.Email, Avatar: user.Picture}); err != nil {
 		log.Fatal("failed to create user:", err)
 	}
 
@@ -147,6 +150,28 @@ func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) GetDevices(w http.ResponseWriter, r *http.Request) {
+	session, err := s.Store.Get(r, "gpsitty")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		log.Printf("failed to get session: %v\n", err)
+		return
+	}
+
+	devices, err := s.Queries.GetDevices(context.Background(), session.Values["id"].(string))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("failed to get devices: %v\n", err)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(devices); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("failed to encode json: %v\n", err)
+		return
+	}
 }
 
 // TODO: 0x14 sleep route; 0x48 restart; 0x48 shutdown; 0x61 light switch; 0x92 alarm on;0x93 alarm off

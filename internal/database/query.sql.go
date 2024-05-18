@@ -33,8 +33,8 @@ func (q *Queries) CreatePosition(ctx context.Context, arg CreatePositionParams) 
 	return err
 }
 
-const createUser = `-- name: CreateUser :one
-INSERT INTO users (id,name,email,avatar) VALUES ($1,$2,$3,$4) RETURNING id, name, email, avatar, last_login_time
+const createUser = `-- name: CreateUser :exec
+INSERT INTO users (id,name,email,avatar) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING
 `
 
 type CreateUserParams struct {
@@ -44,22 +44,46 @@ type CreateUserParams struct {
 	Avatar string
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser,
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
+	_, err := q.db.ExecContext(ctx, createUser,
 		arg.ID,
 		arg.Name,
 		arg.Email,
 		arg.Avatar,
 	)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.Avatar,
-		&i.LastLoginTime,
-	)
-	return i, err
+	return err
+}
+
+const getDevices = `-- name: GetDevices :many
+SELECT devices.imei, devices.battery_power, devices.charging, devices.last_status_packet from devices JOIN user_devices ON devices.imei = user_devices.device_imei WHERE user_devices.userid = $1
+`
+
+func (q *Queries) GetDevices(ctx context.Context, userid string) ([]Device, error) {
+	rows, err := q.db.QueryContext(ctx, getDevices, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Device
+	for rows.Next() {
+		var i Device
+		if err := rows.Scan(
+			&i.Imei,
+			&i.BatteryPower,
+			&i.Charging,
+			&i.LastStatusPacket,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUser = `-- name: GetUser :one
