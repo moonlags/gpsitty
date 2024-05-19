@@ -15,10 +15,12 @@ import (
 	"github.com/go-chi/httprate"
 )
 
+type ContextValue struct{}
+
 func (s *Server) RegisterRoutes() http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger, middleware.Recoverer, httprate.LimitByIP(100, 1*time.Minute))
+	r.Use(middleware.Logger, middleware.Recoverer, httprate.LimitByIP(64, 2*time.Minute))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -30,11 +32,35 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.Get("/auth/google", s.AuthHandler)
 	r.Get("/auth/logout", s.LogoutHandler)
 
-	r.Get("/v1/session", s.GetSession)
-	r.Get("/v1/link/{imei}", s.LinkDevice)
-	r.Get("/v1/devices", s.GetDevices)
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(s.SecuredRoute)
+
+		r.Get("/session", s.GetSession)
+		r.Get("/link/{imei}", s.LinkDevice)
+		r.Get("/devices", s.GetDevices)
+	})
 
 	return r
+}
+
+func (s *Server) SecuredRoute(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session, err := s.Store.Get(r, "gpsitty")
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			log.Printf("failed to get session: %v\n", err)
+			return
+		}
+
+		id, ok := session.Values["id"]
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), ContextValue{}, id)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,14 +135,9 @@ func (s *Server) AuthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
-	session, err := s.Store.Get(r, "gpsitty")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("failed to get session: %v\n", err)
-		return
-	}
+	id := r.Context().Value(ContextValue{}).(string)
 
-	user, err := s.Queries.GetUser(context.Background(), session.Values["id"].(string))
+	user, err := s.Queries.GetUser(context.Background(), id)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		log.Printf("failed to get user: %v\n", err)
@@ -134,16 +155,11 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
-	session, err := s.Store.Get(r, "gpsitty")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("failed to get session: %v\n", err)
-		return
-	}
+	id := r.Context().Value(ContextValue{}).(string)
 
 	deviceImei := chi.URLParam(r, "imei")
 
-	if err := s.Queries.LinkDevice(context.Background(), database.LinkDeviceParams{DeviceImei: deviceImei, Userid: session.Values["id"].(string)}); err != nil {
+	if err := s.Queries.LinkDevice(context.Background(), database.LinkDeviceParams{DeviceImei: deviceImei, Userid: id}); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("failed to link device: %v\n", err)
 		return
@@ -153,14 +169,9 @@ func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) GetDevices(w http.ResponseWriter, r *http.Request) {
-	session, err := s.Store.Get(r, "gpsitty")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("failed to get session: %v\n", err)
-		return
-	}
+	id := r.Context().Value(ContextValue{}).(string)
 
-	devices, err := s.Queries.GetDevices(context.Background(), session.Values["id"].(string))
+	devices, err := s.Queries.GetDevices(context.Background(), id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("failed to get devices: %v\n", err)
