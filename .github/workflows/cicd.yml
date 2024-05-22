@@ -23,7 +23,7 @@ jobs:
         run: go test -cover ./...
 
       - name: build
-        run: go build -v ./... -o main
+        run: go build -o main -v ./...
 
       - uses: actions/setup-node@v4
         with:
