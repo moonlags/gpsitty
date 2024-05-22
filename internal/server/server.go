@@ -1,8 +1,6 @@
 package server
 
 import (
-	"database/sql"
-	"fmt"
 	"net/http"
 	"os"
 	"time"
@@ -23,15 +21,7 @@ type Server struct {
 	Store   *sessions.CookieStore
 }
 
-func NewServer(conf *oauth2.Config, store *sessions.CookieStore, devices map[string]*tcp.Device) (*http.Server, error) {
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("DB_USERNAME"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_NAME"))
-
-	conn, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-	queries := database.New(conn)
-
+func NewServer(queries *database.Queries, conf *oauth2.Config, store *sessions.CookieStore, devices map[string]*tcp.Device) (*http.Server, error) {
 	NewServer := &Server{
 		Queries: queries,
 		Devices: devices,

@@ -11,8 +11,8 @@ VALUES ($1,$2,$3,$4,$5);
 -- name: UpdateBatteryPower :exec
 UPDATE devices SET battery_power = $1 WHERE imei = $2;
 
--- name: InsertDevice :one
-INSERT INTO devices (imei,battery_power,charging) VALUES ($1,$2,$3) RETURNING *;
+-- name: InsertDevice :exec
+INSERT INTO devices (imei,battery_power,charging) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING;
 
 -- name: LinkDevice :exec
 INSERT INTO user_devices (userid,device_imei) VALUES ($1,$2);

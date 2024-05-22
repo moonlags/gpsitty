@@ -10,7 +10,9 @@ function App() {
 
   useEffect(() => {
     axios
-      .get("http://localhost:50731/api/v1/session", { withCredentials: true })
+      .get("http://" + process.env.REACT_APP_BACKEND_HOST + "/api/v1/session", {
+        withCredentials: true,
+      })
       .then((response) => {
         setUser(response.data);
       })

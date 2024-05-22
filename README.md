@@ -12,7 +12,15 @@ These instructions will get you a copy of the project up and running on your loc
 
 1. Go >= 1.21 installed
 2. Nodejs installed
-3. MySQL database running
+3. Postgresql database running
+4. (goose)[https://github.com/pressly/goose] installed
+
+run migrations
+
+```bash
+cd internal/database/migrations
+goose "user=some dbname=some sslmode=disabled" up
+```
 
 build the application
 
@@ -23,7 +31,7 @@ go build cmd/api/main.go
 run the application
 
 ```bash
-go run cmd/api/main.go > /logs/logs.log &
+go run cmd/api/main.go > logs.log &
 cd client
 npm run dev
 ```
@@ -31,5 +39,5 @@ npm run dev
 run the test suite
 
 ```bash
-go test ./tests -v
+go test ./... -v
 ```

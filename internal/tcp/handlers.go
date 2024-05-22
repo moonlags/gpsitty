@@ -120,7 +120,7 @@ func (p *LoginPacket) Process(device *Device, server *Server) ([]byte, error) {
 		return nil, errors.New("device already logged in")
 	}
 
-	if _, err := server.Queries.InsertDevice(context.Background(), database.InsertDeviceParams{Imei: p.IMEI}); err != nil {
+	if err := server.Queries.InsertDevice(context.Background(), database.InsertDeviceParams{Imei: p.IMEI}); err != nil {
 		return nil, err
 	}
 

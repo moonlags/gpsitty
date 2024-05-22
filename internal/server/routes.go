@@ -33,34 +33,12 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r.Get("/auth/logout", s.LogoutHandler)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(s.SecuredRoute)
-
-		r.Get("/session", s.GetSession)
-		r.Get("/link/{imei}", s.LinkDevice)
-		r.Get("/devices", s.GetDevices)
+		r.Get("/session", s.SecuredRoute(s.GetSession))
+		r.Get("/link/{imei}", s.SecuredRoute(s.LinkDevice))
+		r.Get("/devices", s.SecuredRoute(s.GetDevices))
 	})
 
 	return r
-}
-
-func (s *Server) SecuredRoute(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, err := s.Store.Get(r, "gpsitty")
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			log.Printf("failed to get session: %v\n", err)
-			return
-		}
-
-		id, ok := session.Values["id"]
-		if !ok {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		ctx := context.WithValue(r.Context(), ContextValue{}, id)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
 }
 
 func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -134,9 +112,7 @@ func (s *Server) AuthHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
-func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(ContextValue{}).(string)
-
+func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, id string) {
 	user, err := s.Queries.GetUser(context.Background(), id)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -144,19 +120,13 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonResp, err := json.Marshal(user)
-	if err != nil {
-		log.Fatalf("failed to marshal json: %v\n", err)
-	}
-
-	if _, err := w.Write(jsonResp); err != nil {
-		log.Fatalf("failed to write to response: %v\n", err)
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("failed to respond with json: %v\n", err)
 	}
 }
 
-func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(ContextValue{}).(string)
-
+func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request, id string) {
 	deviceImei := chi.URLParam(r, "imei")
 
 	if err := s.Queries.LinkDevice(context.Background(), database.LinkDeviceParams{DeviceImei: deviceImei, Userid: id}); err != nil {
@@ -168,9 +138,7 @@ func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) GetDevices(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(ContextValue{}).(string)
-
+func (s *Server) GetDevices(w http.ResponseWriter, r *http.Request, id string) {
 	devices, err := s.Queries.GetDevices(context.Background(), id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

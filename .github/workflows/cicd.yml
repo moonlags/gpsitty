@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: check out code
+        uses: actions/checkout@v4
+
+      - name: set up go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21.x"
+
+      - name: run tests
+        run: go test -cover ./...
+
+      - name: build
+        run: go build -v ./... -o main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+        cd client
+        npm i
+        npm run build
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.PAGES_TOKEN }}
+          publish_dir: ./client/dist

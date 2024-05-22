@@ -18,7 +18,9 @@ function DevicesView() {
 
   useEffect(() => {
     axios
-      .get("http://localhost:50731/api/v1/devices", { withCredentials: true })
+      .get("http://" + process.env.REACT_APP_BACKEND_HOST + "/api/v1/devices", {
+        withCredentials: true,
+      })
       .then((response) => {
         setDevices(response.data);
       })
@@ -29,9 +31,12 @@ function DevicesView() {
 
   const handle_link = () => {
     axios
-      .get("http://localhost:50731/api/v1/link/" + imei, {
-        withCredentials: true,
-      })
+      .get(
+        "http://" + process.env.REACT_APP_BACKEND_HOST + "/api/v1/link/" + imei,
+        {
+          withCredentials: true,
+        }
+      )
       .then(() => {
         toast("Linked, refresh this page");
       })

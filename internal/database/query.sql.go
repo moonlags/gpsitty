@@ -103,8 +103,8 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 	return i, err
 }
 
-const insertDevice = `-- name: InsertDevice :one
-INSERT INTO devices (imei,battery_power,charging) VALUES ($1,$2,$3) RETURNING imei, battery_power, charging, last_status_packet
+const insertDevice = `-- name: InsertDevice :exec
+INSERT INTO devices (imei,battery_power,charging) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING
 `
 
 type InsertDeviceParams struct {
@@ -113,16 +113,9 @@ type InsertDeviceParams struct {
 	Charging     bool
 }
 
-func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) (Device, error) {
-	row := q.db.QueryRowContext(ctx, insertDevice, arg.Imei, arg.BatteryPower, arg.Charging)
-	var i Device
-	err := row.Scan(
-		&i.Imei,
-		&i.BatteryPower,
-		&i.Charging,
-		&i.LastStatusPacket,
-	)
-	return i, err
+func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) error {
+	_, err := q.db.ExecContext(ctx, insertDevice, arg.Imei, arg.BatteryPower, arg.Charging)
+	return err
 }
 
 const linkDevice = `-- name: LinkDevice :exec
