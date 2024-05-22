@@ -10,7 +10,7 @@ function App() {
 
   useEffect(() => {
     axios
-      .get("http://" + process.env.REACT_APP_BACKEND_HOST + "/api/v1/session", {
+      .get("http://" + import.meta.env.VITE_BACKEND_HOST + "/api/v1/session", {
         withCredentials: true,
       })
       .then((response) => {

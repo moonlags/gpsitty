@@ -18,7 +18,7 @@ function DevicesView() {
 
   useEffect(() => {
     axios
-      .get("http://" + process.env.REACT_APP_BACKEND_HOST + "/api/v1/devices", {
+      .get("http://" + import.meta.env.VITE_BACKEND_HOST + "/api/v1/devices", {
         withCredentials: true,
       })
       .then((response) => {
@@ -32,7 +32,7 @@ function DevicesView() {
   const handle_link = () => {
     axios
       .get(
-        "http://" + process.env.REACT_APP_BACKEND_HOST + "/api/v1/link/" + imei,
+        "http://" + import.meta.env.VITE_BACKEND_HOST + "/api/v1/link/" + imei,
         {
           withCredentials: true,
         }

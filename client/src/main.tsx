@@ -4,7 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { Toaster } from "sonner";
 
-if (process.env.REACT_APP_BACKEND_HOST === undefined) {
+if (import.meta.env.VITE_BACKEND_HOST === undefined) {
   throw new Error("Please set REACT_APP_BACKEND_HOST variable");
 }
 
