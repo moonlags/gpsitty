@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"gpsitty/internal/database"
@@ -22,7 +23,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.Use(middleware.Logger, middleware.Recoverer, httprate.LimitByIP(64, 2*time.Minute))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   []string{os.Getenv("CLIENT_HOST")},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
