@@ -32,8 +32,3 @@ jobs:
           cd client
           npm i
           npm run build
-
-      - uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.PAGES_TOKEN }}
-          publish_dir: ./client/dist
