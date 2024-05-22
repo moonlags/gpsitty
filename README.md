@@ -13,7 +13,7 @@ These instructions will get you a copy of the project up and running on your loc
 1. Go >= 1.21 installed
 2. Nodejs installed
 3. Postgresql database running
-4. (goose)[https://github.com/pressly/goose] installed
+4. [goose](https://github.com/pressly/goose) installed
 
 run migrations
 
@@ -41,3 +41,5 @@ run the test suite
 ```bash
 go test ./... -v
 ```
+
+![test coverage badge](https://github.com/moonlags/gpsitty/actions/workflows/cicd.yml/badge.svg)
