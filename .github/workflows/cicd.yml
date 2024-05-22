@@ -24,11 +24,3 @@ jobs:
 
       - name: build
         run: go build -o main -v cmd/api/main.go
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: |
-          cd client
-          npm i
-          npm run build
