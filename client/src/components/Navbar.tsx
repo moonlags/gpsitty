@@ -3,8 +3,7 @@ import UserInfo, { IUser } from "./UserInfo";
 import { Button } from "./ui/button";
 
 const handleLogin = () => {
-  window.location.href =
-    "http://" + import.meta.env.VITE_BACKEND_HOST + "/auth/google";
+  window.location.href = import.meta.env.VITE_BACKEND_HOST + "/auth/google";
 };
 
 function NavBar(user: IUser) {
