@@ -1,38 +1,42 @@
 package auth
 
 import (
+	"log"
+	"net/http"
 	"os"
+	"time"
 
-	"github.com/gorilla/sessions"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-func NewGoogleConfig(callback string) *oauth2.Config {
-	googleClientId := os.Getenv("GOOGLE_CLIENT_ID")
-	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+const (
+	maxAge = 3600 * 24 * 7
+	isProd = false
+)
 
-	conf := &oauth2.Config{
-		ClientID:     googleClientId,
-		ClientSecret: googleClientSecret,
-		RedirectURL:  callback,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
+func SignJwt(id string) string {
+	claims := &jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(maxAge * time.Second)),
+		Issuer:    id,
 	}
 
-	return conf
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(os.Getenv("SIGNING_KEY")))
+	if err != nil {
+		log.Fatalf("failed to sing jwt: %v\n", err)
+	}
+
+	return signed
 }
 
-func NewCookieStore(maxAge int, secure bool) *sessions.CookieStore {
-	store := sessions.NewCookieStore([]byte(os.Getenv("COOKIE_KEY")))
-
-	store.MaxAge(maxAge)
-	store.Options.Path = "/"
-	store.Options.HttpOnly = true
-	store.Options.Secure = secure
-
-	return store
+func SetAuthCookie(w http.ResponseWriter, value string) {
+	cookie := &http.Cookie{
+		Name:     "token",
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   isProd,
+	}
+	http.SetCookie(w, cookie)
 }

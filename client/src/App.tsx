@@ -1,31 +1,30 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { createEffect, createSignal } from "solid-js";
 import { IUser } from "./components/UserInfo";
+import axios from "axios";
 import NavBar from "./components/Navbar";
+import IntroductionPage from "./components/IntroductionPage";
 import DevicesView from "./components/DevicesView";
-import IntorductionPage from "./components/IntroductionPage";
 
 function App() {
-  const [user, setUser] = useState<IUser>();
+  const [user, setUser] = createSignal<IUser>();
 
-  useEffect(() => {
+  createEffect(() => {
     axios
-      .get(import.meta.env.VITE_BACKEND_HOST + "/api/v1/session", {
-        withCredentials: true,
-      })
+      .get(import.meta.env.VITE_BACKEND_HOST + "/api/v1/session")
       .then((response) => {
+        console.log(response);
         setUser(response.data);
       })
       .catch((err) => {
         console.error(err);
       });
-  }, []);
+  });
 
   return (
-    <main className="flex h-screen flex-col">
-      <NavBar {...user} />
-      <div className="flex p-10">
-        {user ? <DevicesView /> : <IntorductionPage />}
+    <main class="flex h-screen flex-col">
+      <NavBar user={user()} />
+      <div class="flex p-10">
+        {user()?.ID ? <DevicesView /> : <IntroductionPage />}
       </div>
     </main>
   );

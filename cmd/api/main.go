@@ -2,16 +2,15 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"os"
 
-	"gpsitty/internal/auth"
 	"gpsitty/internal/database"
 	"gpsitty/internal/server"
 	"gpsitty/internal/tcp"
 
 	"github.com/joho/godotenv"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -26,12 +25,10 @@ func init() {
 }
 
 func main() {
-	googleConf := auth.NewGoogleConfig("http://localhost:50731/auth/google/callback")
-	store := auth.NewCookieStore(maxAge, isProd)
 	devices := make(map[string]*tcp.Device)
 	queries := NewDB()
 
-	server, err := server.NewServer(queries, googleConf, store, devices)
+	server, err := server.NewServer(queries, devices)
 	if err != nil {
 		log.Fatalf("failed to create http server: %v\n", err)
 	}
@@ -49,9 +46,7 @@ func main() {
 }
 
 func NewDB() *database.Queries {
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", os.Getenv("DB_USERNAME"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_NAME"))
-
-	conn, err := sql.Open("postgres", connStr)
+	conn, err := sql.Open("sqlite3", "gpsitty.db")
 	if err != nil {
 		log.Fatalf("failed to open db: %v\n", err)
 	}

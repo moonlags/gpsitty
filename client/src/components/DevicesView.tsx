@@ -1,81 +1,76 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { createEffect, createSignal } from "solid-js";
+import { showToast } from "./ui/toast";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { toast } from "sonner";
-
-interface Device {
-  Imei: string;
-  BatteryPower: number;
-  Charging: boolean;
-}
+import DeviceCard, { IDevice } from "./DeviceCard";
 
 function DevicesView() {
-  const [devices, setDevices] = useState<[Device]>();
-  const [imei, setImei] = useState("");
+  const [devices, setDevices] = createSignal<[IDevice]>();
+  const [imei, setImei] = createSignal<string>();
 
-  useEffect(() => {
+  createEffect(() => {
     axios
-      .get(import.meta.env.VITE_BACKEND_HOST + "/api/v1/devices", {
-        withCredentials: true,
-      })
+      .get(import.meta.env.VITE_BACKEND_HOST + "/api/v1/devices")
       .then((response) => {
+        console.log(response);
         setDevices(response.data);
       })
       .catch(() => {
-        toast("Something went wrong while quering devices");
+        showToast({
+          title: "ERROR",
+          description: "Something went wrong while getting your devices",
+          variant: "error",
+        });
       });
-  }, []);
+  });
 
-  const handle_link = () => {
+  function handleLink() {
     axios
-      .get(import.meta.env.VITE_BACKEND_HOST + "/api/v1/link/" + imei, {
-        withCredentials: true,
-      })
+      .get(import.meta.env.VITE_BACKEND_HOST + "/api/v1/link/" + imei())
       .then(() => {
-        toast("Linked, refresh this page");
+        location.reload();
       })
       .catch(() => {
-        toast("Something went wrong, check provided IMEI");
+        showToast({
+          title: "ERROR",
+          description: "Something went wrong, check provided IMEI",
+          variant: "error",
+        });
       });
-  };
+  }
 
   return (
-    <div className="flex flex-col gap-20 w-full">
-      <p className="text-3xl font-semibold">Your Devices:</p>
-      <div className="px-20 flex flex-row gap-20 w-full">
-        {devices?.map((device) => (
-          <div key={device.Imei}>{device.Imei}</div>
+    <div class="flex flex-col gap-20 w-full">
+      <p class="text-3xl font-semibold">Your Devices:</p>
+      <div class="px-20 grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+        {devices()?.map((device) => (
+          <DeviceCard device={device} />
         ))}
       </div>
-      <div className="flex flex-col items-start gap-2">
+      <div class="flex flex-col items-start gap-2">
         <Popover>
-          <PopoverTrigger asChild>
-            <p className="text-blue-400 text-lg underline cursor-pointer">
-              Can not find your device?
-            </p>
+          <PopoverTrigger class="text-blue-400 text-lg underline cursor-pointer">
+            Can not find your device?
           </PopoverTrigger>
-          <PopoverContent className="w-96 ml-2">
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <h4 className="font-medium leading-none">Link It!</h4>
+          <PopoverContent class="w-96 ml-2">
+            <div class="grid gap-4">
+              <div class="space-y-2">
+                <h4 class="font-medium leading-none">Link It!</h4>
               </div>
-              <div className="grid gap-2">
-                <div className="grid grid-cols-3 items-center gap-4">
+              <div class="grid gap-2">
+                <div class="grid grid-cols-3 items-center gap-4">
                   <Label>IMEI</Label>
                   <Input
-                    value={imei}
+                    value={imei()}
                     onChange={(e) => setImei(e.target.value)}
-                    className="col-span-2 h-8"
+                    class="col-span-2 h-8"
                   />
                 </div>
               </div>
-              <Button
-                className="dark border border-blue-100"
-                onClick={handle_link}
-              >
+              <Button class="dark border border-blue-100" onClick={handleLink}>
                 Link
               </Button>
             </div>

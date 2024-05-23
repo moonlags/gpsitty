@@ -10,15 +10,14 @@ import (
 )
 
 const createPosition = `-- name: CreatePosition :exec
-INSERT INTO positions (latitude,longitude,speed,heading,device_imei)
-VALUES ($1,$2,$3,$4,$5)
+INSERT INTO positions (latitude,longitude,speed,heading,device_imei) VALUES (?,?,?,?,?)
 `
 
 type CreatePositionParams struct {
 	Latitude   float64
 	Longitude  float64
-	Speed      int16
-	Heading    int16
+	Speed      int64
+	Heading    int64
 	DeviceImei string
 }
 
@@ -34,28 +33,22 @@ func (q *Queries) CreatePosition(ctx context.Context, arg CreatePositionParams) 
 }
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users (id,name,email,avatar) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING
+INSERT INTO users (id,email,password) VALUES (?,?,?)
 `
 
 type CreateUserParams struct {
-	ID     string
-	Name   string
-	Email  string
-	Avatar string
+	ID       string
+	Email    string
+	Password string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser,
-		arg.ID,
-		arg.Name,
-		arg.Email,
-		arg.Avatar,
-	)
+	_, err := q.db.ExecContext(ctx, createUser, arg.ID, arg.Email, arg.Password)
 	return err
 }
 
 const getDevices = `-- name: GetDevices :many
-SELECT devices.imei, devices.battery_power, devices.charging, devices.last_status_packet from devices JOIN user_devices ON devices.imei = user_devices.device_imei WHERE user_devices.userid = $1
+SELECT devices.imei, devices.battery_power, devices.charging, devices.last_status_packet from devices JOIN user_devices ON devices.imei = user_devices.device_imei WHERE user_devices.userid = ?
 `
 
 func (q *Queries) GetDevices(ctx context.Context, userid string) ([]Device, error) {
@@ -87,7 +80,7 @@ func (q *Queries) GetDevices(ctx context.Context, userid string) ([]Device, erro
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, name, email, avatar, last_login_time FROM users where id = $1
+SELECT id, email, password, last_login_time FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
@@ -95,21 +88,36 @@ func (q *Queries) GetUser(ctx context.Context, id string) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
 		&i.Email,
-		&i.Avatar,
+		&i.Password,
+		&i.LastLoginTime,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, password, last_login_time FROM users WHERE email = ?
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
 		&i.LastLoginTime,
 	)
 	return i, err
 }
 
 const insertDevice = `-- name: InsertDevice :exec
-INSERT INTO devices (imei,battery_power,charging) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING
+INSERT INTO devices (imei,battery_power,charging) VALUES (?,?,?) ON CONFLICT DO NOTHING
 `
 
 type InsertDeviceParams struct {
 	Imei         string
-	BatteryPower int16
+	BatteryPower int64
 	Charging     bool
 }
 
@@ -119,7 +127,7 @@ func (q *Queries) InsertDevice(ctx context.Context, arg InsertDeviceParams) erro
 }
 
 const linkDevice = `-- name: LinkDevice :exec
-INSERT INTO user_devices (userid,device_imei) VALUES ($1,$2)
+INSERT INTO user_devices (userid,device_imei) VALUES (?,?)
 `
 
 type LinkDeviceParams struct {
@@ -133,11 +141,11 @@ func (q *Queries) LinkDevice(ctx context.Context, arg LinkDeviceParams) error {
 }
 
 const updateBatteryPower = `-- name: UpdateBatteryPower :exec
-UPDATE devices SET battery_power = $1 WHERE imei = $2
+UPDATE devices SET battery_power = ? WHERE imei = ?
 `
 
 type UpdateBatteryPowerParams struct {
-	BatteryPower int16
+	BatteryPower int64
 	Imei         string
 }
 
@@ -147,7 +155,7 @@ func (q *Queries) UpdateBatteryPower(ctx context.Context, arg UpdateBatteryPower
 }
 
 const updateCharging = `-- name: UpdateCharging :exec
-UPDATE devices SET charging = $1 where imei = $2
+UPDATE devices SET charging = ? WHERE imei = ?
 `
 
 type UpdateChargingParams struct {

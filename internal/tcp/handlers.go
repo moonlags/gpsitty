@@ -144,7 +144,7 @@ func (p *PosititioningPacket) Process(device *Device, queries *database.Queries)
 	}
 
 	if err := queries.CreatePosition(context.Background(), database.CreatePositionParams{
-		Latitude: float64(p.Latitude), Longitude: float64(p.Longitude), Speed: int16(p.Speed), Heading: int16(p.Heading), DeviceImei: device.IMEI,
+		Latitude: float64(p.Latitude), Longitude: float64(p.Longitude), Speed: int64(p.Speed), Heading: int64(p.Heading), DeviceImei: device.IMEI,
 	}); err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (p *StatusPacket) Process(device *Device, queries *database.Queries) ([]byt
 		return nil, errors.New("device is not logged in")
 	}
 
-	if err := queries.UpdateBatteryPower(context.Background(), database.UpdateBatteryPowerParams{Imei: device.IMEI, BatteryPower: int16(p.BatteryPower)}); err != nil {
+	if err := queries.UpdateBatteryPower(context.Background(), database.UpdateBatteryPowerParams{Imei: device.IMEI, BatteryPower: int64(p.BatteryPower)}); err != nil {
 		return nil, err
 	}
 

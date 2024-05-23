@@ -8,13 +8,18 @@ import (
 	"os"
 	"time"
 
+	"gpsitty/internal/auth"
 	"gpsitty/internal/database"
 
+	"github.com/alexedwards/argon2id"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"github.com/oklog/ulid/v2"
 )
+
+var clientHost string = os.Getenv("CLIENT_HOST")
 
 type ContextValue struct{}
 
@@ -23,15 +28,17 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.Use(middleware.Logger, middleware.Recoverer, httprate.LimitByIP(64, 2*time.Minute))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{os.Getenv("CLIENT_HOST")},
+		AllowedOrigins:   []string{"http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
 
-	r.Get("/auth/google/callback", s.AuthCallbackHandler)
-	r.Get("/auth/google", s.AuthHandler)
-	r.Get("/auth/logout", s.LogoutHandler)
+	r.Route("/auth", func(r chi.Router) {
+		r.Post("/register", s.AuthRoute(s.RegisterHandler))
+		r.Post("/login", s.AuthRoute(s.LoginHandler))
+		r.Get("/logout", s.LogoutHandler)
+	})
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/session", s.SecuredRoute(s.GetSession))
@@ -42,88 +49,63 @@ func (s *Server) RegisterRoutes() http.Handler {
 	return r
 }
 
-func (s *Server) AuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	token, err := s.Conf.Exchange(context.Background(), r.FormValue("code"))
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Printf("failed to exchange: %v\n", err)
-		return
-	}
-
-	if !token.Valid() {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	client := s.Conf.Client(context.Background(), token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to get response from google: %v\n", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	var user struct {
-		ID      string `json:"sub,omitempty"`
-		Name    string `json:"name,omitempty"`
-		Picture string `json:"picture,omitempty"`
-		Email   string `json:"email,omitempty"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to decode json: %v\n", err)
-		return
-	}
-
-	if err := s.Queries.CreateUser(context.Background(), database.CreateUserParams{ID: user.ID, Name: user.Name, Email: user.Email, Avatar: user.Picture}); err != nil {
-		log.Fatal("failed to create user:", err)
-	}
-
-	session, err := s.Store.Get(r, "gpsitty")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to get session: %v\n", err)
-		return
-	}
-
-	session.Values["id"] = user.ID
-	if err := session.Save(r, w); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to save session: %v\n", err)
-		return
-	}
-
-	http.Redirect(w, r, "http://localhost:5173/", http.StatusFound)
-}
-
 func (s *Server) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   "gpsitty",
+		Name:   "token",
 		MaxAge: -1,
+		Path:   "/",
 	})
 
-	http.Redirect(w, r, "http://localhost:5173", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, clientHost, http.StatusOK)
 }
 
-func (s *Server) AuthHandler(w http.ResponseWriter, r *http.Request) {
-	url := s.Conf.AuthCodeURL("state")
+func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request, data AuthData) {
+	hash, err := argon2id.CreateHash(data.Password, &argon2id.Params{Parallelism: 1, SaltLength: 16, KeyLength: 16, Iterations: 4})
+	if err != nil {
+		HttpError(w, "failed to hash a password", http.StatusInternalServerError, err)
+		return
+	}
 
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	id := ulid.Make().String()
+	if err := s.Queries.CreateUser(context.Background(), database.CreateUserParams{
+		ID:       id,
+		Email:    data.Email,
+		Password: hash,
+	}); err != nil {
+		HttpError(w, "email already exists", http.StatusBadRequest, err)
+		return
+	}
+
+	signed := auth.SignJwt(id)
+	auth.SetAuthCookie(w, signed)
+}
+
+func (s *Server) LoginHandler(w http.ResponseWriter, r *http.Request, data AuthData) {
+	user, err := s.Queries.GetUserByEmail(context.Background(), data.Email)
+	if err != nil {
+		HttpError(w, "wrong email or password", http.StatusUnauthorized, err)
+		return
+	}
+
+	if match, err := argon2id.ComparePasswordAndHash(data.Password, user.Password); !match || err != nil {
+		HttpError(w, "wrong email or password", http.StatusUnauthorized, err)
+		return
+	}
+
+	signed := auth.SignJwt(user.ID)
+	auth.SetAuthCookie(w, signed)
 }
 
 func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, id string) {
 	user, err := s.Queries.GetUser(context.Background(), id)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		log.Printf("failed to get user: %v\n", err)
+		HttpError(w, "user not found", http.StatusBadRequest, err)
 		return
 	}
+	user.Password = ""
 
 	if err := json.NewEncoder(w).Encode(user); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to respond with json: %v\n", err)
+		log.Fatalf("failed to encode user: %v\n", err)
 	}
 }
 
@@ -131,8 +113,7 @@ func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request, id string) {
 	deviceImei := chi.URLParam(r, "imei")
 
 	if err := s.Queries.LinkDevice(context.Background(), database.LinkDeviceParams{DeviceImei: deviceImei, Userid: id}); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Printf("failed to link device: %v\n", err)
+		HttpError(w, "device not found", http.StatusBadRequest, err)
 		return
 	}
 
@@ -142,15 +123,12 @@ func (s *Server) LinkDevice(w http.ResponseWriter, r *http.Request, id string) {
 func (s *Server) GetDevices(w http.ResponseWriter, r *http.Request, id string) {
 	devices, err := s.Queries.GetDevices(context.Background(), id)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to get devices: %v\n", err)
+		HttpError(w, "failed to get devices", http.StatusBadRequest, err)
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(devices); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to encode json: %v\n", err)
-		return
+		log.Fatalf("failed to encode devices: %v\n", err)
 	}
 }
 

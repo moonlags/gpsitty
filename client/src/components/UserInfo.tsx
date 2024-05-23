@@ -1,21 +1,46 @@
+import { AiOutlineUser } from "solid-icons/ai";
+import { ImCog } from "solid-icons/im";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import axios from "axios";
+
 export interface IUser {
   ID?: string;
-  Name?: string;
   Email?: string;
-  Avatar?: string;
 }
 
-function UserInfo(user: IUser) {
+function UserInfo(props: { user: IUser }) {
+  function handleLogout() {
+    axios
+      .get(import.meta.env.VITE_BACKEND_HOST + "/auth/logout")
+      .then(() => {
+        location.reload();
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }
+
   return (
-    <div className="flex flex-row gap-5 items-center">
-      <img
-        src={user.Avatar}
-        className="rounded-full w-10 h-10 border border-gray-700"
-      />
-      <div className="flex flex-col">
-        <p className="text-xl">{user.Name}</p>
-        <p className="text-md text-gray-800">{user.Email}</p>
+    <div class="flex flex-row gap-8 items-center">
+      <div class="flex flex-row gap-1">
+        <AiOutlineUser class="h-6 w-6" />
+        <p class="text-md text-gray-800">{props.user.Email}</p>
       </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <ImCog />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent class="w-48">
+          <DropdownMenuItem onClick={handleLogout}>
+            <span>Logout</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

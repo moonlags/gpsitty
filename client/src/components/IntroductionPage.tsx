@@ -1,5 +1,5 @@
-function IntorductionPage() {
-  return <p>We are GPSitty, bla,bla,bla</p>;
+function IntroductionPage() {
+  return <div>welcome to gpsitty</div>;
 }
 
-export default IntorductionPage;
+export default IntroductionPage;

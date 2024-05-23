@@ -1,27 +1,16 @@
-import { Locate, User } from "lucide-react";
 import UserInfo, { IUser } from "./UserInfo";
-import { Button } from "./ui/button";
+import LoginButton from "./LoginButton";
+import { IoLocate } from "solid-icons/io";
 
-const handleLogin = () => {
-  window.location.href = import.meta.env.VITE_BACKEND_HOST + "/auth/google";
-};
-
-function NavBar(user: IUser) {
+function NavBar(props: { user: IUser | undefined }) {
   return (
-    <div className="px-10 items-center flex flex-row justify-between w-full h-16 bg-gray-300">
-      <div className="flex flex-row gap-2 items-center">
-        <Locate className="w-8 h-8" />
-        <p className="text-xl">GPSitty</p>
+    <div class="px-10 items-center flex flex-row justify-between w-full min-h-16 bg-gray-300">
+      <div class="flex flex-row gap-2 items-center">
+        <IoLocate class="w-8 h-8" />
+        <p class="text-xl">GPSitty</p>
       </div>
-      <div className="flex flex-row gap-10">
-        {user.ID ? (
-          <UserInfo {...user} />
-        ) : (
-          <Button className="flex flex-row gap-2 dark" onClick={handleLogin}>
-            <User />
-            Login With Google
-          </Button>
-        )}
+      <div class="flex flex-row gap-10">
+        {props.user ? <UserInfo user={props.user} /> : <LoginButton />}
       </div>
     </div>
   );

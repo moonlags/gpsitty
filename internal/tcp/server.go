@@ -3,7 +3,6 @@ package tcp
 import (
 	"log"
 	"net"
-	"os"
 
 	"gpsitty/internal/database"
 )
@@ -28,7 +27,7 @@ type Device struct {
 }
 
 func (s *Server) Listen() error {
-	listener, err := net.Listen("tcp", ":"+os.Getenv("TCP_PORT"))
+	listener, err := net.Listen("tcp", ":58080")
 	if err != nil {
 		return err
 	}

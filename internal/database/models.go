@@ -10,26 +10,25 @@ import (
 
 type Device struct {
 	Imei             string
-	BatteryPower     int16
+	BatteryPower     int64
 	Charging         bool
 	LastStatusPacket time.Time
 }
 
 type Position struct {
-	ID         int32
+	ID         interface{}
 	Latitude   float64
 	Longitude  float64
-	Speed      int16
-	Heading    int16
+	Speed      int64
+	Heading    int64
 	DeviceImei string
 	CreatedAt  time.Time
 }
 
 type User struct {
 	ID            string
-	Name          string
 	Email         string
-	Avatar        string
+	Password      string
 	LastLoginTime time.Time
 }
 
