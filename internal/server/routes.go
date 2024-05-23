@@ -19,8 +19,6 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-var clientHost string = os.Getenv("CLIENT_HOST")
-
 type ContextValue struct{}
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -28,7 +26,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	r.Use(middleware.Logger, middleware.Recoverer, httprate.LimitByIP(64, 2*time.Minute))
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   []string{os.Getenv("CLIENT_HOST")},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -55,8 +53,6 @@ func (s *Server) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		MaxAge: -1,
 		Path:   "/",
 	})
-
-	http.Redirect(w, r, clientHost, http.StatusOK)
 }
 
 func (s *Server) RegisterHandler(w http.ResponseWriter, r *http.Request, data AuthData) {
